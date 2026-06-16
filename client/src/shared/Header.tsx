@@ -1,16 +1,11 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-// Simple auth state — will connect to server in later modules
-const API = "";
+import { useAuth } from "../App";
 
 export default function Header() {
-  const [user, setUser] = useState<any>(null);
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async () => {
-    // Open GitHub OAuth flow
-    // For development: prompt for GitHub username
     const githubAccount = prompt("Enter GitHub username (dev mode):");
     if (!githubAccount) return;
 
@@ -23,7 +18,7 @@ export default function Header() {
       });
       if (res.ok) {
         const data = await res.json();
-        setUser(data);
+        login(data);
         navigate("/console");
       }
     } catch (err) {
@@ -32,8 +27,7 @@ export default function Header() {
   };
 
   const handleLogout = async () => {
-    await fetch("/auth/logout", { method: "POST", credentials: "include" });
-    setUser(null);
+    await logout();
     navigate("/");
   };
 
@@ -49,7 +43,10 @@ export default function Header() {
         backdropFilter: "blur(14px)",
       }}
     >
-      <Link to="/" style={{ fontWeight: 900, fontSize: 20, color: "#06164a", textDecoration: "none" }}>
+      <Link
+        to="/"
+        style={{ fontWeight: 900, fontSize: 20, color: "#06164a", textDecoration: "none" }}
+      >
         Agent Racing Yard
       </Link>
 
@@ -62,9 +59,35 @@ export default function Header() {
 
       <div>
         {user ? (
-          <span>
-            {user.displayName}{" "}
-            <button onClick={handleLogout}>Logout</button>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 14, color: "#53668d" }}>{user.displayName}</span>
+            <Link
+              to="/console"
+              style={{
+                padding: "4px 12px",
+                border: "1px solid rgba(34,107,230,0.25)",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#075bec",
+                textDecoration: "none",
+              }}
+            >
+              Workspace
+            </Link>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: "4px 10px",
+                border: "none",
+                background: "transparent",
+                color: "#53668d",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Logout
+            </button>
           </span>
         ) : (
           <button

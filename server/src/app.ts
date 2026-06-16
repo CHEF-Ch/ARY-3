@@ -44,6 +44,14 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ── Global error handler ──
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("[ARY] Unhandled error:", err.message || err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error",
+  });
+});
+
 // ── Start ──
 app.listen(PORT, () => {
   console.log(`[ARY] Server running on http://localhost:${PORT}`);
