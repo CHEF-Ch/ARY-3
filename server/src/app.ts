@@ -4,6 +4,7 @@ import cors from "cors";
 import { runMigrations } from "./db.js";
 import { registerIdentityRoutes } from "./modules/identity/routes.js";
 import { registerCommunicationRoutes } from "./modules/communication/routes.js";
+import { registerRaceMgmtRoutes } from "./modules/race-mgmt/routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,10 +29,9 @@ runMigrations();
 // Each module gets its own URL prefix and manages its own routes internally.
 registerIdentityRoutes(app);       // /auth/*, /admin/*
 registerCommunicationRoutes(app);  // /communication/*
+registerRaceMgmtRoutes(app);       // /races/*
 
 // ── Future modules (uncomment when ready) ──
-// import { registerRaceMgmtRoutes } from "./modules/race-mgmt/routes.js";
-// registerRaceMgmtRoutes(app);       // /races/*
 // import { registerPortfolioRoutes } from "./modules/portfolio/routes.js";
 // registerPortfolioRoutes(app);      // /works/*
 // import { registerProjectionRoutes } from "./modules/projection/routes.js";
