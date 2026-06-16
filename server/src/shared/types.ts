@@ -4,7 +4,8 @@ export type RoleType = "rider" | "judge" | "organizer" | "admin";
 
 export interface User {
   id: string;
-  githubAccount: string;
+  username: string;
+  passwordHash: string;
   displayName: string;
   profileCompleted: boolean;
   roles: RoleType[];

@@ -1,30 +1,30 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../App";
 
+const navLink = (to: string, label: string, current: string) => {
+  const active = current === to || (to !== "/" && current.startsWith(to));
+  return (
+    <Link
+      to={to}
+      style={{
+        color: active ? "#075bec" : "#53668d",
+        fontWeight: active ? 900 : 500,
+        textDecoration: "none",
+        borderBottom: active ? "2px solid #075bec" : "2px solid transparent",
+        paddingBottom: 4,
+        transition: "border-color 150ms ease, color 150ms ease",
+      }}
+    >
+      {label}
+    </Link>
+  );
+};
+
 export default function Header() {
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogin = async () => {
-    const githubAccount = prompt("Enter GitHub username (dev mode):");
-    if (!githubAccount) return;
-
-    try {
-      const res = await fetch("/auth/github", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ githubAccount }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        login(data);
-        navigate("/console");
-      }
-    } catch (err) {
-      console.error("Login failed:", err);
-    }
-  };
+  const location = useLocation();
+  const path = location.pathname;
 
   const handleLogout = async () => {
     await logout();
@@ -50,11 +50,11 @@ export default function Header() {
         Agent Racing Yard
       </Link>
 
-      <nav style={{ display: "flex", gap: 20 }}>
-        <Link to="/">Races</Link>
-        <Link to="/works">Works</Link>
-        <Link to="/riders/1">Riders</Link>
-        <Link to="/cooperation">Cooperation</Link>
+      <nav style={{ display: "flex", gap: 20, alignItems: "flex-end" }}>
+        {navLink("/", "Races", path)}
+        {navLink("/works", "Works", path)}
+        {navLink("/riders", "Riders", path)}
+        {navLink("/cooperation", "Cooperation", path)}
       </nav>
 
       <div>
@@ -90,8 +90,8 @@ export default function Header() {
             </button>
           </span>
         ) : (
-          <button
-            onClick={handleLogin}
+          <Link
+            to="/login"
             style={{
               padding: "6px 16px",
               border: "1px solid rgba(34,107,230,0.18)",
@@ -99,11 +99,11 @@ export default function Header() {
               background: "rgba(255,255,255,0.58)",
               color: "#0a3fb8",
               fontWeight: 700,
-              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
             Login
-          </button>
+          </Link>
         )}
       </div>
     </header>

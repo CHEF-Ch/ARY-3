@@ -3,7 +3,8 @@
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  github_account TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL DEFAULT '',
   display_name TEXT NOT NULL DEFAULT '',
   profile_completed INTEGER NOT NULL DEFAULT 0,
   roles TEXT NOT NULL DEFAULT '[]',
