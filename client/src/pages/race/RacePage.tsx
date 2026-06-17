@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../App";
 
 interface Race {
   id: string;
@@ -15,11 +16,22 @@ interface Race {
   cta: { label: string; target: string };
 }
 
+interface Registration {
+  id: string;
+  raceId: string;
+  raceSlug: string | null;
+  raceTitle: string | null;
+  status: string;
+}
+
 export default function RacePage() {
   const { slug } = useParams();
+  const { user } = useAuth();
   const [race, setRace] = useState<Race | null>(null);
+  const [myRegistration, setMyRegistration] = useState<Registration | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionMessage, setActionMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -45,10 +57,41 @@ export default function RacePage() {
     return () => { active = false; };
   }, [slug]);
 
+  useEffect(() => {
+    if (!user || !race) {
+      setMyRegistration(null);
+      return;
+    }
+
+    fetch("/registrations/me", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows: Registration[]) => {
+        setMyRegistration(rows.find((registration) => registration.raceId === race.id) || null);
+      })
+      .catch(() => setMyRegistration(null));
+  }, [race, user]);
+
   const statusLabel = useMemo(() => {
     if (!race) return "";
     return race.status.replace(/_/g, " ");
   }, [race]);
+
+  const submitRegistration = async () => {
+    if (!race) return;
+    setActionMessage("Submitting registration...");
+    const res = await fetch(`/races/${race.id}/registrations`, {
+      method: "POST",
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setActionMessage(data?.error || "Registration failed");
+      if (data?.registration) setMyRegistration(data.registration);
+      return;
+    }
+    setMyRegistration(data);
+    setActionMessage("Registration submitted");
+  };
 
   if (loading) {
     return <PageShell><p style={muted}>Loading race...</p></PageShell>;
@@ -71,7 +114,7 @@ export default function RacePage() {
           <h1 style={titleStyle}>{race.title}</h1>
           <p style={summaryStyle}>{race.challenge || "Challenge brief is being prepared."}</p>
         </div>
-        <a href={race.cta.target} style={ctaStyle}>{race.cta.label}</a>
+        <RaceAction race={race} registration={myRegistration} user={user} onRegister={submitRegistration} />
       </section>
 
       <section style={gridStyle}>
@@ -80,10 +123,25 @@ export default function RacePage() {
         <Info label="Registration closes" value={formatDate(race.registrationClosesAt)} />
         <Info label="Starts" value={formatDate(race.startsAt)} />
         <Info label="Ends" value={formatDate(race.endsAt)} />
-        <Info label="Human review" value="B1 Race CRUD / CTA" />
+        <Info label="My registration" value={myRegistration?.status || (user ? "Not registered" : "Login required")} />
+        <Info label="Human review" value="B2 Registration" />
       </section>
+      {actionMessage && <p style={messageStyle}>{actionMessage}</p>}
     </PageShell>
   );
+}
+
+function RaceAction({ race, registration, user, onRegister }: { race: Race; registration: Registration | null; user: unknown; onRegister: () => void }) {
+  if (registration) {
+    return <span style={statusPillStyle}>Registration: {registration.status}</span>;
+  }
+  if (!user) {
+    return <span style={statusPillStyle}>Login to register</span>;
+  }
+  if (race.status === "registration") {
+    return <button type="button" onClick={onRegister} style={buttonStyle}>Register</button>;
+  }
+  return <a href={race.cta.target} style={ctaStyle}>{race.cta.label}</a>;
 }
 
 function PageShell({ children }: { children: React.ReactNode }) {
@@ -147,6 +205,22 @@ const ctaStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
+const buttonStyle: React.CSSProperties = {
+  ...ctaStyle,
+  border: "none",
+  cursor: "pointer",
+};
+
+const statusPillStyle: React.CSSProperties = {
+  flex: "0 0 auto",
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid rgba(34,107,230,0.22)",
+  color: "#0a3fb8",
+  fontWeight: 800,
+  background: "rgba(255,255,255,0.78)",
+};
+
 const gridStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
@@ -176,4 +250,9 @@ const infoValueStyle: React.CSSProperties = {
 
 const muted: React.CSSProperties = {
   color: "#53668d",
+};
+
+const messageStyle: React.CSSProperties = {
+  color: "#0a3fb8",
+  fontWeight: 800,
 };

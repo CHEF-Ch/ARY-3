@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "db:migrate": "tsx src/db.ts --migrate",
-    "db:seed": "tsx src/db.ts --seed"
+    "db:seed": "tsx src/db.ts --seed",
+    "test:race-mgmt": "npm run build && node src/modules/race-mgmt/security-smoke-test.mjs"
   },
   "dependencies": {
     "express": "^4.21.0",

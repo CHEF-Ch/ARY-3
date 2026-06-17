@@ -20,6 +20,7 @@
 | `UX-1` UX/UI 高保真原型与设计基线 | 进行中 | 高保真原型已按 IA 重构为 1080P 高密度蓝白竞赛风格页面，并接入样例赛事数据驱动主要页面；页面可见文案已清理 PRD / 实现说明口吻，二级页面口号式大标题已降级为对象名和状态摘要；本轮已按明确审查标准修正首页 IA：Public Header 收敛为 Races / Works / Riders / Cooperation，Race 子页面入口回到具体 Race/赛果模块，底部快捷菜单移除，Hero 与 Featured Race 合体，Latest Results / Past Races 去重，开放报名 / 合作入口命名明确，首页独立 Leaderboards / Live Skill Board 已撤销，未登录态只显示 Login；首页整改经验已沉淀为通用高保真页面工作流 Skill，后续页面需先审 IA 合约、补足领域样例数据并复用已通过页面视觉 / 交互惯例。 | `docs/ux-hifi.taskbook.md`、`.agents/skills/hifi-ui-page-workflow/SKILL.md`、`design-prototype/index.html`、`design-prototype/README.md` |
 | `DEV-1` 领域模型 + 权限 + 数据模型 | 暂缓 | 不能在缺少 UX/UI 高保真原型和关键页面状态输入时启动架构设计。 | `docs/ary-domain-analysis.v0.3.md`、`docs/ary-permission-matrix.md`、`docs/ary-mvp.ia.md` |
 | `DEV-5` CA 接入 / Projection / Live Hall | 细化中 | 已将 CA 作为 Agent Race 工具、比赛信号源和评审参考的口径落盘；CAConnection 可在参赛过程中登记和握手，合法连接数据进入证据链，接入异常进入评审前风险提示；`task_progress` 仅用于 unblock / 说明，不做定期推送，且不设 `session_progress` push。 | `docs/ary-ca-integration-spec.md` |
+| `B` race-mgmt 实现 | 待复审 | 已完成 B0-B7：Race CRUD、报名审核、RaceProject 幂等生成、CAConnection DCR HMAC 握手、签名 Session push 防篡改 / 防重放 / 隔离审计、RaceProject 聚合接入状态派生、前端最小审核面和 `npm run test:race-mgmt` smoke test；本轮已通过本地攻击模拟，伪造 / 篡改 / 重放 / 跨连接注入均未进入 sessions。 | `server/src/modules/race-mgmt/routes.ts`、`server/src/modules/race-mgmt/security-smoke-test.mjs`、`client/src/pages/race/RacePage.tsx`、`client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx` |
 | `REL-1` 赛事彩排 / 灰度发布 / 正式发布 | 待开始 | 等待开发任务和验收证据完成。 | `docs/ary-release-ops-plan.md` |
 | `OPS-1` 赛事值守 / 回滚 / 赛后归档 | 待开始 | 等待发布方案和赛事执行计划明确。 | `docs/ary-release-ops-plan.md` |
 
@@ -56,6 +57,7 @@
 | UX-1 品牌区 logo 已替换为马头罗盘 PNG，生成透明底裁切版并按竖向比例调整 Header 图标容器 | `design-prototype/assets/logo-horse-compass-transparent.png`、`design-prototype/index.html`、`design-prototype/styles.css` |
 | UX-1 首页设计与交互短视频已录制，覆盖默认首页、Live Race 切换、右侧 Drawer 打开 / 收起，并内嵌字幕说明 | `design-prototype/recordings/ary-homepage-demo.mp4` |
 | UX-1 首页整改经验已沉淀为通用高保真页面工作流 Skill，并在任务书和原型 README 中引用；后续页面需先审 IA、补领域样例数据、复用已通过页面视觉 / 交互惯例，再浏览器复审 | `.agents/skills/hifi-ui-page-workflow/SKILL.md`、`docs/ux-hifi.taskbook.md`、`design-prototype/README.md` |
+| B race-mgmt B0-B7 已实现并通过本地验证 | `server/src/modules/race-mgmt/routes.ts`、`server/src/modules/race-mgmt/security-smoke-test.mjs`、`database/migrations/003-races.sql`、`database/migrations/004-registrations.sql`、`database/migrations/005-race-projects.sql`、`database/migrations/006-ca-connections.sql`、`database/migrations/007-sessions.sql`、`client/src/pages/race/RacePage.tsx`、`client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx` |
 
 ## 风险与阻塞
 
