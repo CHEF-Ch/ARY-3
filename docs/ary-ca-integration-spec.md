@@ -390,3 +390,213 @@ ARY 接收原始 `RidingSignalMessage` 后，至少投影出以下数据：
 | Report 输入 | rider_report、race_report、review_summary 的素材 |
 
 这些投影可以重算，且不作为最终赛果事实源。最终赛果仍读取 Award、Report 或 leaderboard_read_model。
+
+---
+
+# 8. 防伪与防篡改机制
+
+## 8.1 概述
+
+CA 骑行数据是评审和 Evidence 的核心输入，必须确保：
+
+1. **消息来源真实** — 来自选手本地的 DCR Desktop App，而非伪造客户端
+2. **消息未被篡改** — push 过程中内容不被中间人修改
+3. **消息不可重放** — 攻击者不能复制一条旧消息重复提交
+
+## 8.2 DCR Desktop App 已有的安全能力
+
+DCR v0.1.0-alpha.17 源码分析结论（`DCR-Desktop-App/dcr-peer/`）：
+
+| 能力 | 文件 | 机制 |
+|------|------|------|
+| peerSessionId | `peer-auth-state.ts` | SHA-256 加盐哈希，存储在 OS Keychain（macOS）或加密文件（Windows fallback） |
+| gatewayOrigin 绑定 | `peer-auth-state.ts` | peer session 与特定 gateway 绑定，换 gateway 必须重新 login |
+| Session scope 校验 | `contracts.ts` | `validateSessionInjectionRequest` 校验 sessionId 归属，不匹配时拒绝 |
+| 本地 HTTP Server | `peer-auth-bridge.ts` | DCR 在本地启动 HTTP Server，暴露 `/peer-bind-material`、`/peer-session/lookup` 等端点 |
+
+**DCR 自身不实现消息签名**——这是 ARY 需要在 Gateway 端补齐的。
+
+## 8.3 防伪流程
+
+```
+DCR Desktop App（选手本地）                    ARY Server
+─────────────────────────                    ──────────
+                                                
+① dcr login                                   
+   携带 DCR 本地生成的 peerSessionId  ──→  POST /auth/dcr/login
+                                            校验 peerSessionId 格式
+                                            记录 peerSessionId → CAConnection
+                                            返回 gatewayOrigin + 确认
+                                            
+② dcr peer-bind                               
+   携带 peerSessionId + raceProjectId  ──→  POST /race-projects/:id/ca-connections
+                                            校验 peerSessionId 归属
+                                            创建 CAConnection（ingestion_status=connected）
+                                            返回 caConnectionId
+
+③ CA 骑行中，DCR push 每条消息                
+   消息体：RidingSignalMessage                
+   Headers:                                    
+     X-DCR-Peer-Session-Id: <peerSessionId>   
+     X-DCR-Signature: HMAC-SHA256(body,       
+                       peerSessionId)         
+     X-DCR-Nonce: <seq>-<timestamp>       ──→  POST /ca-connections/:id/sessions/push
+                                            ① 查 CAConnection 表，校验 peerSessionId 归属
+                                            ② HMAC-SHA256 验签
+                                            ③ nonce 校验：seq 必须 > 上次接收的 seq
+                                            ④ idempotencyKey 去重
+                                            ⑤ 任一失败 → 拒收 + 写入隔离审计日志
+                                            ⑥ 全部通过 → 写入 sessions 表
+
+④ ARY 需要完整快照                            
+   ARY 发起 HTTP GET                    ──→  DCR 本地 HTTP Server
+                                             GET /peer-session/lookup
+                                             携带 peerSessionId 鉴权
+                                             返回 Session 快照 JSON
+```
+
+## 8.4 消息签名规范
+
+### 签名算法
+
+```
+HMAC-SHA256
+
+签名输入: 完整请求体（JSON 字符串，UTF-8）
+签名密钥: peerSessionId（DCR login 时生成，ARY 和 DCR 各持一份）
+输出格式: hex 字符串（64 字符）
+```
+
+### 请求头
+
+| Header | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| `X-DCR-Peer-Session-Id` | string | 是 | DCR login 时生成的 peerSessionId |
+| `X-DCR-Signature` | string | 是 | HMAC-SHA256(body, peerSessionId) 的 hex 输出 |
+| `X-DCR-Nonce` | string | 是 | 格式 `<seq>-<unix_ms>`，seq 为单调递增整数 |
+
+### Nonce 防重放规则
+
+```text
+接收消息时:
+  nonce = "<seq>-<timestamp>"
+  
+  ① 解析 seq 和 timestamp
+  ② 检查 timestamp 与服务器当前时间的偏差 ≤ 5 分钟
+  ③ 查询该 CAConnection 的 last_nonce_seq
+  ④ seq 必须 > last_nonce_seq
+  ⑤ 通过后更新 last_nonce_seq = seq
+  ⑥ 失败 → 拒绝，写入审计日志
+```
+
+## 8.5 服务端校验伪代码
+
+```typescript
+async function handlePushMessage(req: Request, res: Response) {
+  const { caConnectionId } = req.params;
+  const body = JSON.stringify(req.body);
+  const peerSessionId = req.headers["x-dcr-peer-session-id"] as string;
+  const signature = req.headers["x-dcr-signature"] as string;
+  const nonce = req.headers["x-dcr-nonce"] as string;
+
+  // ① 查 CAConnection，校验 peerSessionId 归属
+  const conn = findById("ca_connections", caConnectionId);
+  if (!conn || conn.peer_session_id !== peerSessionId) {
+    return res.status(403).json({ error: "Invalid peer session" });
+  }
+
+  // ② 检查 CAConnection 状态
+  if (conn.ingestion_status !== "connected" && conn.ingestion_status !== "active") {
+    return res.status(403).json({ error: "CAConnection not in valid state" });
+  }
+  if (conn.disabled_at) {
+    return res.status(403).json({ error: "CAConnection is disabled" });
+  }
+
+  // ③ HMAC-SHA256 验签
+  const expectedSig = createHmac("sha256", peerSessionId).update(body).digest("hex");
+  if (signature !== expectedSig) {
+    logAudit("signature_mismatch", { caConnectionId, nonce });
+    return res.status(403).json({ error: "Signature verification failed" });
+  }
+
+  // ④ Nonce 防重放
+  const [seqStr, tsStr] = nonce.split("-");
+  const seq = parseInt(seqStr, 10);
+  const ts = parseInt(tsStr, 10);
+  if (Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+    logAudit("nonce_expired", { caConnectionId, nonce });
+    return res.status(403).json({ error: "Nonce expired" });
+  }
+  if (seq <= (conn.last_nonce_seq || 0)) {
+    logAudit("nonce_replay", { caConnectionId, nonce });
+    return res.status(403).json({ error: "Nonce replay detected" });
+  }
+
+  // ⑤ Idempotency key 去重
+  const existing = findBy("sessions", "idempotency_key", req.body.idempotencyKey);
+  if (existing) {
+    return res.status(409).json({ error: "Duplicate message", existingSessionId: existing.id });
+  }
+
+  // ⑥ 通过——写入 sessions 表，更新 CAConnection 状态
+  update("ca_connections", caConnectionId, {
+    ingestion_status: "active",
+    last_nonce_seq: seq,
+    last_synced_at: new Date().toISOString(),
+  });
+  insert("sessions", { /* ... session fields from message ... */ });
+
+  res.status(201).json({ ok: true });
+}
+```
+
+## 8.6 隔离审计
+
+未通过校验的消息写入 `audit_log` 表（或 JSON 文件），记录：
+
+| 字段 | 说明 |
+|------|------|
+| timestamp | 拒绝时间 |
+| reason | 拒绝原因（signature_mismatch / nonce_expired / nonce_replay / invalid_session / disabled / duplicate） |
+| caConnectionId | 目标 CAConnection |
+| nonce | 消息携带的 nonce |
+| body | 消息体（截断到 1KB） |
+
+审计日志不进入 Projection、Evidence 或 Report。Organizer 和 Admin 可在 Console 中查看。
+
+## 8.7 DCR 侧要求
+
+DCR Desktop App 需要在其 peer-auth-bridge 中实现：
+
+1. `dcr login` 时生成 peerSessionId（已实现），并向 ARY 的 `/auth/dcr/login` 发送
+2. 每条 push 消息自动附加 `X-DCR-Signature`、`X-DCR-Nonce` 头
+3. 维护 CAConnection 级别的 seq 计数器，每次 push 自增
+
+DCR 端的签名逻辑：
+
+```javascript
+// DCR 侧（伪代码，DCR 团队实现）
+const crypto = require("crypto");
+const peerSessionId = getStoredPeerSessionId(); // 从 OS Keychain 读取
+const body = JSON.stringify(ridingSignalMessage);
+const signature = crypto.createHmac("sha256", peerSessionId).update(body).digest("hex");
+const nonce = `${++seqCounter}-${Date.now()}`;
+
+fetch(`http://ary-gateway/ca-connections/${caConnectionId}/sessions/push`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-DCR-Peer-Session-Id": peerSessionId,
+    "X-DCR-Signature": signature,
+    "X-DCR-Nonce": nonce,
+  },
+  body,
+});
+```
+
+## 8.8 不做什么
+
+- 不要求 DCR 实现完整的 TLS/mTLS（HTTP 层加密由部署环境的反向代理处理）
+- 不在 MVP 阶段引入 Ed25519 或 RSA 非对称签名（HMAC-SHA256 足够，peerSessionId 已通过 OS Keychain 安全存储）
+- 不接受未经过 DCR peer-bind 的 CAConnection 直接 push（必须在 ARY 端完成登记和握手）
