@@ -6,7 +6,7 @@ export default function Header() {
   const navigate = useNavigate();
 
   const handleLogin = async () => {
-    const githubAccount = prompt("Enter GitHub username (dev mode):");
+    const githubAccount = prompt("请输入 GitHub 用户名（开发模式）：");
     if (!githubAccount) return;
 
     try {
@@ -22,7 +22,7 @@ export default function Header() {
         navigate("/console");
       }
     } catch (err) {
-      console.error("Login failed:", err);
+      console.error("登录失败:", err);
     }
   };
 
@@ -51,10 +51,10 @@ export default function Header() {
       </Link>
 
       <nav style={{ display: "flex", gap: 20 }}>
-        <Link to="/">Races</Link>
-        <Link to="/works">Works</Link>
-        <Link to="/riders/1">Riders</Link>
-        <Link to="/cooperation">Cooperation</Link>
+        <Link to="/">赛事</Link>
+        <Link to="/works">作品</Link>
+        <Link to="/riders/1">Rider</Link>
+        <Link to="/cooperation">合作</Link>
       </nav>
 
       <div>
@@ -73,7 +73,7 @@ export default function Header() {
                 textDecoration: "none",
               }}
             >
-              Workspace
+              工作台
             </Link>
             <button
               onClick={handleLogout}
@@ -86,7 +86,7 @@ export default function Header() {
                 cursor: "pointer",
               }}
             >
-              Logout
+              退出
             </button>
           </span>
         ) : (
@@ -102,7 +102,7 @@ export default function Header() {
               cursor: "pointer",
             }}
           >
-            Login
+            登录
           </button>
         )}
       </div>

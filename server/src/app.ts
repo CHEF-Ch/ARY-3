@@ -5,6 +5,7 @@ import { runMigrations } from "./db.js";
 import { registerIdentityRoutes } from "./modules/identity/routes.js";
 import { registerCommunicationRoutes } from "./modules/communication/routes.js";
 import { registerRaceMgmtRoutes } from "./modules/race-mgmt/routes.js";
+import { registerPortfolioRoutes } from "./modules/portfolio/routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,10 +31,9 @@ runMigrations();
 registerIdentityRoutes(app);       // /auth/*, /admin/*
 registerCommunicationRoutes(app);  // /communication/*
 registerRaceMgmtRoutes(app);       // /races/*
+registerPortfolioRoutes(app);      // /works/*
 
 // ── Future modules (uncomment when ready) ──
-// import { registerPortfolioRoutes } from "./modules/portfolio/routes.js";
-// registerPortfolioRoutes(app);      // /works/*
 // import { registerProjectionRoutes } from "./modules/projection/routes.js";
 // registerProjectionRoutes(app);     // /projections/*
 // import { registerReportGenRoutes } from "./modules/report-gen/routes.js";
