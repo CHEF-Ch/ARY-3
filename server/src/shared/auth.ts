@@ -7,11 +7,11 @@ import { findById } from "../db.js";
 export function getCurrentUser(req: Request): AuthUser | null {
   const userId = req.session?.userId;
   if (!userId) return null;
-  const row = findById<{ display_name: string; roles: string }>("users", userId);
+  const row = findById<{ displayName: string; roles: string | string[] }>("users", userId);
   if (!row) return null;
   return {
     userId,
-    displayName: row.display_name,
+    displayName: row.displayName,
     roles: parseRoles(row.roles),
   };
 }
@@ -30,6 +30,7 @@ export interface ResourceContext {
   ownerUserId?: string;
   assignedJudgeUserId?: string;
   raceOrganizerIds?: string[];
+  allowGlobalOrganizer?: boolean;
   visibility?: string;
   isPublished?: boolean;
 }
@@ -38,7 +39,19 @@ export function authorize(user: AuthUser | null, resourceType: string, action: s
   if (user?.roles.includes("admin")) return { allowed: true };
 
   const scope = getRequiredScope(resourceType, action);
+  const scopes = Array.isArray(scope) ? scope : [scope];
 
+  let denied: AuthResult = { allowed: false, reason: "Insufficient permissions" };
+  for (const item of scopes) {
+    const result = authorizeScope(user, item, ctx);
+    if (result.allowed) return result;
+    denied = result;
+  }
+
+  return denied;
+}
+
+function authorizeScope(user: AuthUser | null, scope: ScopeReq, ctx: ResourceContext): AuthResult {
   if (scope === "PUBLIC") {
     if (ctx.visibility === "public" && ctx.isPublished !== false) return { allowed: true };
     return { allowed: false, reason: "Resource is not publicly visible" };
@@ -58,7 +71,8 @@ export function authorize(user: AuthUser | null, resourceType: string, action: s
 
   if (scope === "MANAGED_RACE") {
     if (!user.roles.includes("organizer")) return { allowed: false, reason: "Not an organizer" };
-    if (ctx.raceOrganizerIds?.includes(user.userId) || !ctx.raceOrganizerIds) return { allowed: true };
+    if (ctx.raceOrganizerIds?.includes(user.userId)) return { allowed: true };
+    if (ctx.allowGlobalOrganizer) return { allowed: true };
     return { allowed: false, reason: "Not an organizer of this race" };
   }
 
@@ -67,11 +81,12 @@ export function authorize(user: AuthUser | null, resourceType: string, action: s
 
 // ── Permission matrix ──
 type ScopeReq = "PUBLIC" | "OWN" | "ASSIGNED" | "MANAGED_RACE" | "SYSTEM";
-const MATRIX: Record<string, Record<string, ScopeReq>> = {
+type ScopeReqSpec = ScopeReq | ScopeReq[];
+const MATRIX: Record<string, Record<string, ScopeReqSpec>> = {
   Race: { view_public:"PUBLIC", view_private:"MANAGED_RACE", create:"MANAGED_RACE", edit:"MANAGED_RACE", publish:"MANAGED_RACE", archive:"MANAGED_RACE" },
   Registration: { submit:"OWN", view:"OWN", approve:"MANAGED_RACE", reject:"MANAGED_RACE", withdraw:"OWN" },
   RaceProject: { view_status:"OWN", register_ca_connection:"OWN", manage_ca_connection:"OWN", view_session_summary:"OWN", view_raw_session:"MANAGED_RACE" },
-  Work: { view_public:"PUBLIC", view_private:"OWN", create:"OWN", submit:"OWN", lock:"MANAGED_RACE", publish:"MANAGED_RACE", hide:"OWN", review:"ASSIGNED" },
+  Work: { view_public:"PUBLIC", view_private:["OWN", "ASSIGNED", "MANAGED_RACE"], create:"OWN", submit:"OWN", lock:"MANAGED_RACE", publish:"MANAGED_RACE", hide:"OWN", review:"ASSIGNED" },
   Evidence: { view_public:"PUBLIC", view_private_summary:"OWN", set_visibility:"OWN", cite_in_report:"MANAGED_RACE" },
   JudgeAssignment: { view:"ASSIGNED", create:"MANAGED_RACE", update:"MANAGED_RACE", remove:"MANAGED_RACE" },
   JudgingRecord: { view_published_summary:"PUBLIC", view_private:"OWN", create:"ASSIGNED", submit:"ASSIGNED", update_before_submit:"ASSIGNED" },
@@ -83,6 +98,6 @@ const MATRIX: Record<string, Record<string, ScopeReq>> = {
   ScreenDisplay: { view_public_display:"PUBLIC", configure:"MANAGED_RACE", switch_mode:"MANAGED_RACE", fallback:"MANAGED_RACE" },
 };
 
-function getRequiredScope(resourceType: string, action: string): ScopeReq {
+function getRequiredScope(resourceType: string, action: string): ScopeReqSpec {
   return MATRIX[resourceType]?.[action] ?? "SYSTEM";
 }

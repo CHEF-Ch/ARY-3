@@ -30,6 +30,8 @@ const INGESTION_STATUSES = [
   "failed",
 ] as const;
 
+const MAX_SESSION_PAYLOAD_BYTES = 64 * 1024;
+
 const CONNECTION_HEALTH = [
   "no_signal",
   "no_valid_signal",
@@ -268,7 +270,7 @@ export function registerRaceMgmtRoutes(app: Express): void {
 
   router.post("/", requireLogin, (req: Request, res: Response) => {
     const user = getCurrentUser(req);
-    const result = authorize(user, "Race", "create", {});
+    const result = authorize(user, "Race", "create", { allowGlobalOrganizer: true });
     if (!result.allowed) { res.status(403).json({ error: result.reason }); return; }
 
     const { title, slug, challenge, registrationOpensAt, registrationClosesAt, startsAt, endsAt } = req.body;
@@ -341,6 +343,10 @@ export function registerRaceMgmtRoutes(app: Express): void {
     }
     if (status !== undefined) {
       if (!isRaceStatus(status)) { res.status(400).json({ error: "Invalid race status" }); return; }
+      if (!canTransitionRaceStatus(race.status, status)) {
+        res.status(409).json({ error: `Invalid race status transition: ${race.status} -> ${status}` });
+        return;
+      }
       updates.status = status;
     }
     if (registrationOpensAt !== undefined) updates.registration_opens_at = optionalString(registrationOpensAt);
@@ -359,6 +365,10 @@ export function registerRaceMgmtRoutes(app: Express): void {
 
     const auth = authorizeManagedRace(req, race, "publish");
     if (!auth.allowed) { res.status(403).json({ error: auth.reason }); return; }
+    if (!canTransitionRaceStatus(race.status, "published")) {
+      res.status(409).json({ error: `Invalid race status transition: ${race.status} -> published` });
+      return;
+    }
 
     const updated = update<Race>("races", race.id, {
       status: "published",
@@ -374,6 +384,10 @@ export function registerRaceMgmtRoutes(app: Express): void {
 
     const auth = authorizeManagedRace(req, race, "archive");
     if (!auth.allowed) { res.status(403).json({ error: auth.reason }); return; }
+    if (!canTransitionRaceStatus(race.status, "archived")) {
+      res.status(409).json({ error: `Invalid race status transition: ${race.status} -> archived` });
+      return;
+    }
 
     const updated = update<Race>("races", race.id, {
       status: "archived",
@@ -936,7 +950,7 @@ export function registerRaceMgmtRoutes(app: Express): void {
         payloadHash: "sha256(canonicalJson(payload))",
       },
       sessions: sessions.map(toSessionResponse),
-      audits,
+      audits: audits.map(toIngestionAuditResponse),
       nextStage: "B6 RaceProject aggregate ingestion status derivation",
     });
   });
@@ -1054,6 +1068,16 @@ function toSessionResponse(session: Session) {
   };
 }
 
+function toIngestionAuditResponse(audit: IngestionAudit) {
+  return {
+    id: audit.id,
+    accepted: audit.accepted,
+    reason: audit.reason,
+    detail: audit.detail,
+    receivedAt: audit.received_at,
+  };
+}
+
 function deriveRegistrationActions(registration: Registration): string[] {
   if (registration.status === "submitted") return ["approve", "reject", "withdraw"];
   if (registration.status === "approved") return ["withdraw"];
@@ -1070,6 +1094,21 @@ function canReadRace(req: Request, race: Race): boolean {
 
 function isPublicRace(race: Race): boolean {
   return race.visibility === "public" && race.status !== "draft" && race.status !== "archived";
+}
+
+function canTransitionRaceStatus(from: RaceStatus, to: RaceStatus): boolean {
+  if (from === to) return true;
+  const allowed: Record<RaceStatus, RaceStatus[]> = {
+    draft: ["published", "archived"],
+    published: ["registration", "archived"],
+    registration: ["running", "archived"],
+    running: ["submitting", "archived"],
+    submitting: ["judging", "archived"],
+    judging: ["completed", "archived"],
+    completed: ["archived"],
+    archived: [],
+  };
+  return allowed[from].includes(to);
 }
 
 function authorizeManagedRace(req: Request, race: Race, action: string) {
@@ -1267,10 +1306,14 @@ function validateSessionPush(connection: CAConnection, body: any): PushValidatio
   if (!body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) {
     return { ok: false, reason: "invalid_payload", detail: "payload must be an object." };
   }
+  const canonicalPayload = canonicalJson(body.payload);
+  if (Buffer.byteLength(canonicalPayload, "utf8") > MAX_SESSION_PAYLOAD_BYTES) {
+    return { ok: false, reason: "payload_too_large", detail: "payload exceeds the maximum accepted size." };
+  }
   if (body.payload.caConnectionId !== connection.id) return { ok: false, reason: "payload_connection_mismatch", detail: "payload.caConnectionId does not match CAConnection." };
   if (body.payload.raceProjectId !== connection.race_project_id) return { ok: false, reason: "payload_project_mismatch", detail: "payload.raceProjectId does not match RaceProject." };
 
-  const computedHash = sha256Hex(canonicalJson(body.payload));
+  const computedHash = sha256Hex(canonicalPayload);
   if (body.payloadHash !== computedHash) return { ok: false, reason: "payload_hash_mismatch", detail: "payloadHash does not match server-computed payload hash." };
 
   const signedEnvelope = {
@@ -1291,11 +1334,8 @@ function validateSessionPush(connection: CAConnection, body: any): PushValidatio
 }
 
 function isNonceUsed(caConnectionId: string, nonce: string): boolean {
-  const inSessions = findAll<Session>("sessions")
+  return findAll<Session>("sessions")
     .some((session) => session.ca_connection_id === caConnectionId && session.nonce === nonce);
-  if (inSessions) return true;
-  return findAll<IngestionAudit>("ingestion_audits")
-    .some((audit) => audit.ca_connection_id === caConnectionId && audit.nonce === nonce);
 }
 
 function recordIngestionAudit(input: {

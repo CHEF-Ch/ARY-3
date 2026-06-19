@@ -16,7 +16,7 @@ interface User {
 
 export default function ConsoleShell() {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<RoleView>("organizer_overview");
+  const [view, setView] = useState<RoleView>("screen");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,11 +25,7 @@ export default function ConsoleShell() {
       .then((data) => {
         if (data) {
           setUser(data);
-          // Default to first available role
-          if (data.roles.includes("organizer")) setView("organizer_overview");
-          else if (data.roles.includes("admin")) setView("admin");
-          else if (data.roles.includes("rider")) setView("rider");
-          else if (data.roles.includes("judge")) setView("judge");
+          setView(getDefaultView(data.roles));
         }
       })
       .catch(() => {});
@@ -52,17 +48,17 @@ export default function ConsoleShell() {
           { key: "organizer_judging" as RoleView, label: "评审与奖项", owner: "C" },
         ]
       : []),
-    ...(user.roles.includes("rider") ? [{ key: "rider" as RoleView, label: "Rider View", owner: "B" }] : []),
-    ...(user.roles.includes("judge") ? [{ key: "judge" as RoleView, label: "Judge View", owner: "C" }] : []),
-    ...(user.roles.includes("admin") ? [{ key: "admin" as RoleView, label: "Admin Console", owner: "A" }] : []),
-    { key: "screen" as RoleView, label: "Screen Console", owner: "D" },
+    ...(user.roles.includes("rider") ? [{ key: "rider" as RoleView, label: "Rider 视图", owner: "B" }] : []),
+    ...(user.roles.includes("judge") ? [{ key: "judge" as RoleView, label: "评委视图", owner: "C" }] : []),
+    ...(user.roles.includes("admin") ? [{ key: "admin" as RoleView, label: "Admin 控制台", owner: "A" }] : []),
+    { key: "screen" as RoleView, label: "Screen 控制台", owner: "D" },
   ];
 
   return (
     <div style={{ display: "flex", gap: 24, minHeight: "80vh" }}>
       {/* Sidebar */}
       <aside style={{ width: 220, flexShrink: 0 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Race Workspace</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Race 工作台</h2>
         {availableViews.map((v) => (
           <button
             key={v.key}
@@ -117,6 +113,14 @@ export default function ConsoleShell() {
   );
 }
 
+function getDefaultView(roles: string[]): RoleView {
+  if (roles.includes("organizer")) return "organizer_overview";
+  if (roles.includes("admin")) return "admin";
+  if (roles.includes("rider")) return "rider";
+  if (roles.includes("judge")) return "judge";
+  return "screen";
+}
+
 // ── Admin View (A's implementation) ──
 
 function AdminView({ user }: { user: User }) {
@@ -152,7 +156,7 @@ function AdminView({ user }: { user: User }) {
 
   return (
     <div>
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Admin Console</h1>
+      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Admin 控制台</h1>
       <p style={{ color: "#53668d", marginBottom: 20 }}>
         当前用户：{user.displayName}（{user.roles.join(", ")}）
       </p>
