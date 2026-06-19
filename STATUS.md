@@ -11,7 +11,7 @@
 * `UX-1` 已产出第一轮高保真原型和设计说明，但尚未评审验收，不能直接进入 `M2` 或启动架构设计。
 * 当前已有 server/client 应用代码；模块 C portfolio 后端路由、迁移、代理和测试脚本已完成一轮实现与验证。
 * 模块 C 前端接入已完成当前要求的四个页面：`WorksPage`、`ResultsPage`、`JudgeView`、`OrganizerJudging` 均已完成真实 API 接入。
-* 模块 B race-mgmt 加固已在 `B_parts` / `origin/B_parts` 完成并通过验证，当前等待合入 `main`。
+* 模块 B race-mgmt 加固已从 `B_parts` 合入本地 `main`，当前等待合并后验证并推送 `origin/main`。
 
 ## 任务看板
 
@@ -22,7 +22,7 @@
 | `UX-1` UX/UI 高保真原型与设计基线 | 进行中 | 高保真原型已按 IA 重构为 1080P 高密度蓝白竞赛风格页面，并接入样例赛事数据驱动主要页面；页面可见文案已清理 PRD / 实现说明口吻，二级页面口号式大标题已降级为对象名和状态摘要；本轮已按明确审查标准修正首页 IA：Public Header 收敛为 Races / Works / Riders / Cooperation，Race 子页面入口回到具体 Race/赛果模块，底部快捷菜单移除，Hero 与 Featured Race 合体，Latest Results / Past Races 去重，开放报名 / 合作入口命名明确，首页独立 Leaderboards / Live Skill Board 已撤销，未登录态只显示 Login；首页整改经验已沉淀为通用高保真页面工作流 Skill，后续页面需先审 IA 合约、补足领域样例数据并复用已通过页面视觉 / 交互惯例。 | `docs/ux-hifi.taskbook.md`、`.agents/skills/hifi-ui-page-workflow/SKILL.md`、`design-prototype/index.html`、`design-prototype/README.md` |
 | `DEV-1` 领域模型 + 权限 + 数据模型 | 暂缓 | 不能在缺少 UX/UI 高保真原型和关键页面状态输入时启动架构设计。 | `docs/ary-domain-analysis.v0.3.md`、`docs/ary-permission-matrix.md`、`docs/ary-mvp.ia.md` |
 | `DEV-C` 模块 C portfolio 前端接入 | 待复审 | 后端 C0-C6 已完成并验证；四个前端页面均已替换为真实 API，包含公开 Works、最终榜单、评委评审和主办方评审 / Award 管理。OrganizerJudging 的主办方分配列表受后端缺少 listing 接口限制，仅展示本页新建或已知分配。 | `PLAN-C.md`、`client/src/pages/works/WorksPage.tsx`、`client/src/pages/results/ResultsPage.tsx`、`client/src/pages/console/JudgeView.tsx`、`client/src/pages/console/OrganizerJudging.tsx`、`server/src/modules/portfolio/routes.ts` |
-| `B` race-mgmt 实现 | 待合入 main | `B_parts` / `origin/B_parts` 已完成第一至四阶段加固及动态传输安全复查，并通过 `server` 的 `npm.cmd run test:race-mgmt` 与 `client` 的 `npm.cmd run build`；下一步是合入 `main` 后复跑验证。 | `origin/B_parts`、`server/src/modules/race-mgmt/routes.ts`、`server/src/app.ts`、`server/src/shared/auth.ts`、`server/src/modules/race-mgmt/security-smoke-test.mjs`、`client/src/pages/race/RacePage.tsx`、`client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx` |
+| `B` race-mgmt 实现 | 待验证 / 待推送 main | `B_parts` 已合入本地 `main`：第一至四阶段加固及动态传输安全复查已进入主线工作区；下一步是在合并后复跑 `server` 的 `npm.cmd run test:race-mgmt` 与 `client` 的 `npm.cmd run build`，再推送 `origin/main`。 | `server/src/modules/race-mgmt/routes.ts`、`server/src/app.ts`、`server/src/shared/auth.ts`、`server/src/modules/race-mgmt/security-smoke-test.mjs`、`client/src/pages/race/RacePage.tsx`、`client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx` |
 | `DEV-5` CA 接入 / Projection / Live Hall | 细化中 | 已将 CA 作为 Agent Race 工具、比赛信号源和评审参考的口径落盘；CAConnection 可在参赛过程中登记和握手，合法连接数据进入证据链，接入异常进入评审前风险提示；`task_progress` 仅用于 unblock / 说明，不做定期推送，且不设 `session_progress` push。 | `docs/ary-ca-integration-spec.md` |
 | `REL-1` 赛事彩排 / 灰度发布 / 正式发布 | 待开始 | 等待开发任务和验收证据完成。 | `docs/ary-release-ops-plan.md` |
 | `OPS-1` 赛事值守 / 回滚 / 赛后归档 | 待开始 | 等待发布方案和赛事执行计划明确。 | `docs/ary-release-ops-plan.md` |
@@ -72,7 +72,7 @@
 | DEV-C OrganizerJudging 阶段 1 mock UI 已完成：使用 `useAuth()` 判断登录态，展示作品管理、评委分配、奖项管理、评审进度四个区域，支持本地 lock / publish、分配 / 删除、Award 草稿编辑 / 发布和重复创建提示 | `client/src/pages/console/OrganizerJudging.tsx` |
 | DEV-C Console 入口检查已完成：`评审与奖项` 按 `organizer` role 展示；修正了无角色用户也会默认看到赛事管理内容的问题，当前本地 `recyclable06` 已具备 `organizer` / `judge` / `rider` 角色，可用于视觉审查 | `client/src/pages/console/ConsoleShell.tsx`、`database/data/users.json` |
 | DEV-C OrganizerJudging 阶段 2 已完成：作品列表、锁定、发布、评委分配、删除分配、Award 列表、创建草稿、编辑草稿和发布均接入真实 API；loading / error / empty 与 400 / 403 / 409 提示已处理 | `client/src/pages/console/OrganizerJudging.tsx`、`server/src/modules/portfolio/routes.ts` |
-| B race-mgmt `B_parts` 分支已提交并同步到远程：提交 `0cbf817 feat: harden race management flow`，等待合入 `main` | `origin/B_parts` |
+| B race-mgmt `B_parts` 分支提交 `0cbf817 feat: harden race management flow` 已合入本地 `main`，等待合并后验证和推送 `origin/main` | `B_parts`、`main` |
 | B race-mgmt 第一阶段加固已完成：Race 状态不能从 draft 直接跳 completed；Race 级 MANAGED_RACE 权限要求明确 raceOrganizerIds；安全 smoke test 增补重复报名、重复 approve 幂等、未握手 / 禁用 / 归属错误 / 篡改 / 重放 push 拒收和审计隔离 | `server/src/modules/race-mgmt/routes.ts`、`server/src/shared/auth.ts`、`server/src/modules/race-mgmt/security-smoke-test.mjs` |
 | B race-mgmt 第二阶段前端复审体验已完成：Race Page 使用中文状态和阶段说明；Organizer Overview 展示报名审核、RaceProject 和 CA 风险摘要；Rider View 独立展示一次性 DCR 凭据、CAConnection 状态和“CA 异常不阻断作品提交”的业务语义 | `client/src/pages/race/RacePage.tsx`、`client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx` |
 | B race-mgmt 第三阶段操作闭环已完成：Organizer Overview 接入赛事状态机推进动作；Rider View 接入 DCR HMAC-SHA256 握手和 CAConnection 禁用动作，连接禁用后后续 push 将由后端拒收并审计 | `client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx`、`server/src/modules/race-mgmt/routes.ts` |

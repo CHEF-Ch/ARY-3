@@ -30,6 +30,7 @@ export interface ResourceContext {
   ownerUserId?: string;
   assignedJudgeUserId?: string;
   raceOrganizerIds?: string[];
+  allowGlobalOrganizer?: boolean;
   visibility?: string;
   isPublished?: boolean;
 }
@@ -70,7 +71,8 @@ function authorizeScope(user: AuthUser | null, scope: ScopeReq, ctx: ResourceCon
 
   if (scope === "MANAGED_RACE") {
     if (!user.roles.includes("organizer")) return { allowed: false, reason: "Not an organizer" };
-    if (ctx.raceOrganizerIds?.includes(user.userId) || !ctx.raceOrganizerIds) return { allowed: true };
+    if (ctx.raceOrganizerIds?.includes(user.userId)) return { allowed: true };
+    if (ctx.allowGlobalOrganizer) return { allowed: true };
     return { allowed: false, reason: "Not an organizer of this race" };
   }
 
