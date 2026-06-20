@@ -1,6 +1,8 @@
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/j5hsaebf)
 # ARY 文档索引
 
+> **实际开发仓库**：[CHEF-Ch/ARY-3](https://github.com/CHEF-Ch/ARY-3)（`merge-test` 分支）
+
 本文用于帮助 Agent 和开发者快速找到当前权威文档。根目录 `PLAN.md` 负责近期任务窗口，根目录 `STATUS.md` 负责任务瞬时看板。
 
 ## 文档路由
