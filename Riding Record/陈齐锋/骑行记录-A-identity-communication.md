@@ -3,7 +3,7 @@
 骑手：陈齐锋 (CHEF-Ch)
 CA：Claude (via Claude Code)
 模块：identity + communication（用户认证、权限与公告）
-时间：2026-06-16 ~ 2026-06-20
+时间：2026-06-16 ~ 2026-06-21
 
 ---
 
@@ -98,6 +98,17 @@ CA：Claude (via Claude Code)
 - DCR peer-auth-bridge 端点验证可达
 - REL-1 staging 全链路 17 步彩排通过
 - Riding Record 收集（B/C/D/E 的骑行记录）
+
+### Session 9：DCR 深入联调与交付收口 (06-20 ~ 06-21)
+
+- DCR daemon 启动（`dcr daemon start --gateway http://localhost:3001`），PID 86400
+- DCR peer-auth-bridge（`127.0.0.1:9803`）和 source health（`127.0.0.1:4302`）端点验证可达
+- DCR daemon 状态确认：gateway 指向 ARY staging，peer-auth 待 GUI 登录
+- 输出 DCR 联调 + REL-1 彩排记录（`docs/dcr-and-rel1-record.md`）
+- GitHub OAuth Client ID/Secret 迁移到 `.env`，防止密钥泄露
+- 待办与分工文档标注五人姓名全齐，全部模块 ✅ 已完成
+- Riding Record 7 份收集齐全（A/B/C/D/E）
+- A（陈齐锋）骑行记录撰写
 
 ---
 
