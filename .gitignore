@@ -6,3 +6,6 @@ database/data/
 *.db
 # tsc compilation artifacts in client source
 client/src/**/*.js
+
+# Secrets
+.env

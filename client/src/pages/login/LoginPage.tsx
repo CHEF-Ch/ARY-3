@@ -162,6 +162,22 @@ export default function LoginPage() {
           </>
         )}
 
+        <a
+          href="http://localhost:3000/auth/github"
+          style={{
+            ...btnSubmit,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            background: "#24292e",
+            textDecoration: "none",
+            marginBottom: 12,
+          }}
+        >
+          GitHub 登录
+        </a>
+
         <button type="submit" style={btnSubmit}>{isRegister ? "注册" : "登录"}</button>
 
         <p style={{ textAlign: "center", marginTop: 14, fontSize: 13, color: "#53668d" }}>

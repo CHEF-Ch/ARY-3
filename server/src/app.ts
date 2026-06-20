@@ -1,7 +1,26 @@
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Load .env at startup (before any other imports need env vars)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const envPath = resolve(__dirname, "..", ".env");
+if (existsSync(envPath)) {
+  readFileSync(envPath, "utf-8").split("\n").forEach((line) => {
+    const [key, ...rest] = line.split("=");
+    if (key && rest.length && !key.startsWith("#")) {
+      process.env[key.trim()] = rest.join("=").trim();
+    }
+  });
+}
+
 import express from "express";
 import session from "express-session";
+import passport from "passport";
+import { Strategy as GitHubStrategy } from "passport-github2";
 import cors from "cors";
-import { runMigrations } from "./db.js";
+import { v4 as uuid } from "uuid";
+import { runMigrations, findAll, findBy, insert } from "./db.js";
 import { registerIdentityRoutes } from "./modules/identity/routes.js";
 import { registerCommunicationRoutes } from "./modules/communication/routes.js";
 import { registerRaceMgmtRoutes } from "./modules/race-mgmt/routes.js";
@@ -23,6 +42,45 @@ app.use(
     cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 },
   }),
 );
+
+// ── Passport (GitHub OAuth) ──
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID || "ary-dev-github-client-id",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "ary-dev-github-client-secret",
+      callbackURL: "http://localhost:3000/auth/github/callback",
+      scope: ["user:email"],
+    },
+    (_accessToken: string, _refreshToken: string, profile: any, done: any) => {
+      const githubAccount = profile.username || profile.id;
+      let user = findBy("users", "githubAccount", githubAccount);
+      if (!user) {
+        user = {
+          id: uuid(),
+          githubAccount,
+          displayName: profile.displayName || githubAccount,
+          profileCompleted: !!profile.displayName,
+          roles: ["rider"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        insert("users", user);
+      }
+      done(null, { id: user.id } as any);
+    },
+  ),
+);
+
+passport.serializeUser((user: any, done) => done(null, user.id));
+passport.deserializeUser((id: string, done) => {
+  import("./db.js").then(({ findById }) => {
+    const row = findById("users", id);
+    done(null, row || null);
+  });
+});
+app.use(passport.initialize());
+app.use(passport.session());
 
 // ── Run database migrations ──
 runMigrations();

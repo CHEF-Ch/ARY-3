@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { Router } from "express";
 import { v4 as uuid } from "uuid";
 import { createHash } from "node:crypto";
+import passport from "passport";
 import { findAll, findById, findBy, insert, update } from "../../db.js";
 import { reqUser, requireLogin, requireAdmin, authorize } from "../../shared/auth.js";
 import type { RoleType, User } from "../../shared/types.js";
@@ -89,6 +90,18 @@ export function registerIdentityRoutes(app: Express): void {
       res.json(toUserResponse(user));
     });
   });
+
+  // ── GitHub OAuth ──
+  auth.get("/github", passport.authenticate("github", { scope: ["user:email"] }));
+
+  auth.get(
+    "/github/callback",
+    passport.authenticate("github", { failureRedirect: "/login" }),
+    (req: Request, res: Response) => {
+      req.session.userId = (req.user as any).id;
+      req.session.save(() => res.redirect("http://localhost:5173/console"));
+    },
+  );
 
   // ── Current user ──
   auth.get("/me", requireLogin, (req: Request, res: Response) => {
