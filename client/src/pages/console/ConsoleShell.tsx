@@ -2,21 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import OrganizerOverview from "./OrganizerOverview";
 import OrganizerJudging from "./OrganizerJudging";
+import AdminView from "./AdminView";
 import RiderView from "./RiderView";
 import JudgeView from "./JudgeView";
 import ScreenConsole from "./ScreenConsole";
 
 type RoleView = "organizer_overview" | "organizer_judging" | "rider" | "judge" | "admin" | "screen";
 
-interface User {
-  userId: string;
-  displayName: string;
-  roles: string[];
-}
+interface ConsoleUser { userId: string; displayName: string; roles: string[]; }
 
 export default function ConsoleShell() {
-  const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<RoleView>("screen");
+  const [user, setUser] = useState<ConsoleUser | null>(null);
+  const [view, setView] = useState<RoleView>("organizer_overview");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,7 +22,11 @@ export default function ConsoleShell() {
       .then((data) => {
         if (data) {
           setUser(data);
-          setView(getDefaultView(data.roles));
+          // Default to first available role
+          if (data.roles.includes("organizer")) setView("organizer_overview");
+          else if (data.roles.includes("admin")) setView("admin");
+          else if (data.roles.includes("rider")) setView("rider");
+          else if (data.roles.includes("judge")) setView("judge");
         }
       })
       .catch(() => {});
@@ -48,17 +49,17 @@ export default function ConsoleShell() {
           { key: "organizer_judging" as RoleView, label: "评审与奖项", owner: "C" },
         ]
       : []),
-    ...(user.roles.includes("rider") ? [{ key: "rider" as RoleView, label: "Rider 视图", owner: "B" }] : []),
-    ...(user.roles.includes("judge") ? [{ key: "judge" as RoleView, label: "评委视图", owner: "C" }] : []),
-    ...(user.roles.includes("admin") ? [{ key: "admin" as RoleView, label: "Admin 控制台", owner: "A" }] : []),
-    { key: "screen" as RoleView, label: "Screen 控制台", owner: "D" },
+    ...(user.roles.includes("rider") ? [{ key: "rider" as RoleView, label: "Rider View", owner: "B" }] : []),
+    ...(user.roles.includes("judge") ? [{ key: "judge" as RoleView, label: "Judge View", owner: "C" }] : []),
+    ...(user.roles.includes("admin") ? [{ key: "admin" as RoleView, label: "Admin Console", owner: "A" }] : []),
+    { key: "screen" as RoleView, label: "Screen Console", owner: "D" },
   ];
 
   return (
     <div style={{ display: "flex", gap: 24, minHeight: "80vh" }}>
       {/* Sidebar */}
       <aside style={{ width: 220, flexShrink: 0 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Race 工作台</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Race Workspace</h2>
         {availableViews.map((v) => (
           <button
             key={v.key}
@@ -113,101 +114,4 @@ export default function ConsoleShell() {
   );
 }
 
-function getDefaultView(roles: string[]): RoleView {
-  if (roles.includes("organizer")) return "organizer_overview";
-  if (roles.includes("admin")) return "admin";
-  if (roles.includes("rider")) return "rider";
-  if (roles.includes("judge")) return "judge";
-  return "screen";
-}
-
-// ── Admin View (A's implementation) ──
-
-function AdminView({ user }: { user: User }) {
-  const [users, setUsers] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
-
-  const loadUsers = () => {
-    fetch("/admin/users", { credentials: "include" })
-      .then((r) => r.json())
-      .then(setUsers)
-      .catch(() => setMessage("加载失败"));
-  };
-
-  useEffect(() => { loadUsers(); }, []);
-
-  const updateRoles = async (userId: string, roles: string[]) => {
-    const res = await fetch(`/admin/users/${userId}/roles`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ roles }),
-    });
-    if (res.ok) {
-      setMessage(`角色已更新`);
-      loadUsers();
-    } else {
-      const err = await res.json();
-      setMessage(err.error || "更新失败");
-    }
-  };
-
-  const roleOptions: string[] = ["rider", "judge", "organizer", "admin"];
-
-  return (
-    <div>
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Admin 控制台</h1>
-      <p style={{ color: "#53668d", marginBottom: 20 }}>
-        当前用户：{user.displayName}（{user.roles.join(", ")}）
-      </p>
-      {message && (
-        <div style={{ padding: "8px 12px", marginBottom: 16, background: "#eaf3ff", borderRadius: 8, fontSize: 13 }}>
-          {message}
-        </div>
-      )}
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(34,107,230,0.18)" }}>
-            <th style={{ padding: 8 }}>GitHub</th>
-            <th style={{ padding: 8 }}>显示名</th>
-            <th style={{ padding: 8 }}>资料</th>
-            <th style={{ padding: 8 }}>角色</th>
-            <th style={{ padding: 8 }}>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u: any) => (
-            <tr key={u.userId} style={{ borderBottom: "1px solid rgba(34,107,230,0.08)" }}>
-              <td style={{ padding: 8 }}>{u.githubAccount}</td>
-              <td style={{ padding: 8 }}>{u.displayName || "—"}</td>
-              <td style={{ padding: 8 }}>{u.profileCompleted ? "✅" : "❌"}</td>
-              <td style={{ padding: 8 }}>
-                {roleOptions.map((r) => (
-                  <label key={r} style={{ marginRight: 8, fontSize: 13 }}>
-                    <input
-                      type="checkbox"
-                      checked={u.roles.includes(r)}
-                      onChange={() => {
-                        const newRoles = u.roles.includes(r)
-                          ? u.roles.filter((x: string) => x !== r)
-                          : [...u.roles, r];
-                        updateRoles(u.userId, newRoles);
-                      }}
-                    />
-                    {" "}{r}
-                  </label>
-                ))}
-              </td>
-              <td style={{ padding: 8 }}>
-                <span style={{ fontSize: 12, color: "#53668d" }}>
-                  {u.userId.slice(0, 8)}…
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 

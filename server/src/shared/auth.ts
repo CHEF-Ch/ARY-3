@@ -4,6 +4,25 @@ import { findById } from "../db.js";
 
 // ── Session helpers ──
 
+// Augment Express Request with currentUser set by requireLogin
+declare global { namespace Express { interface Request { currentUser?: AuthUser; } } }
+
+// Use after requireLogin — returns the user loaded by the middleware (no extra DB query)
+export function reqUser(req: Request): AuthUser {
+  if (!req.currentUser) throw new Error("reqUser() called without requireLogin middleware");
+  return req.currentUser;
+}
+
+// requireAdmin — for admin-only routes. Must be used AFTER requireLogin.
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  const user = req.currentUser;
+  if (!user?.roles.includes("admin")) {
+    res.status(403).json({ error: "Admin role required" });
+    return;
+  }
+  next();
+}
+
 export function getCurrentUser(req: Request): AuthUser | null {
   const userId = req.session?.userId;
   if (!userId) return null;
@@ -22,7 +41,9 @@ function parseRoles(raw: string | string[]): RoleType[] {
 }
 
 export function requireLogin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.session?.userId) { res.status(401).json({ error: "Login required" }); return; }
+  const user = getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Login required" }); return; }
+  req.currentUser = user;
   next();
 }
 

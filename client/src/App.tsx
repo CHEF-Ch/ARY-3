@@ -11,6 +11,7 @@ import RiderPage from "./pages/rider/RiderPage";
 import CooperationPage from "./pages/cooperation/CooperationPage";
 import ConsoleShell from "./pages/console/ConsoleShell";
 import ScreenPage from "./pages/screen/ScreenPage";
+import LoginPage from "./pages/login/LoginPage";
 
 // Shared auth context so Header and Console share login state
 interface AuthState {
@@ -45,6 +46,7 @@ export default function App() {
         <main style={{ padding: "24px 32px" }}>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/races/:slug" element={<RacePage />} />
             <Route path="/races/:slug/live" element={<LivePage />} />
             <Route path="/works" element={<WorksPage />} />
