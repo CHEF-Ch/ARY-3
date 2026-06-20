@@ -7,6 +7,7 @@ import { registerCommunicationRoutes } from "./modules/communication/routes.js";
 import { registerRaceMgmtRoutes } from "./modules/race-mgmt/routes.js";
 import { registerPortfolioRoutes } from "./modules/portfolio/routes.js";
 import { registerReportGenRoutes } from "./modules/report-gen/routes.js";
+import { registerProjectionRoutes } from "./modules/projection/routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,9 +36,7 @@ registerRaceMgmtRoutes(app);       // /races/*
 registerPortfolioRoutes(app);      // /works/*
 registerReportGenRoutes(app);      // /reports/*
 
-// ── Future modules (uncomment when ready) ──
-// import { registerProjectionRoutes } from "./modules/projection/routes.js";
-// registerProjectionRoutes(app);     // /projections/*
+registerProjectionRoutes(app);     // /projections/*
 
 // ── Health check ──
 app.get("/health", (_req, res) => {
