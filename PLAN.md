@@ -17,7 +17,7 @@
 | `PRD-TEMP-1` 报名 / RaceProject / CA 参赛语义整改 | 已完成首轮整改并进入待复审：PRD、领域、CA 契约、IA、UX / 高保真原型、权限、QA、OPS 和计划文档已同步新口径。 | `docs/registration-ca-rules-alignment.taskbook.md` |
 | `UX-1` UX/UI 高保真原型与设计基线 | 已产出 IA 对齐版 1080P 高密度高保真原型，后续页面按高保真页面工作流继续深化。 | `docs/ux-hifi.taskbook.md`、`.agents/skills/hifi-ui-page-workflow/SKILL.md`、`design-prototype/index.html` |
 | `DEV-1` 领域模型 + 权限 + 数据模型 | 输出聚合边界、数据模型草案和接口鉴权规则。 | `docs/ary-domain-analysis.v0.3.md` |
-| `DEV-C` 模块 C portfolio 前端接入 | 后端迁移、路由、app 激活、前端代理和测试脚本已完成；`WorksPage`、`ResultsPage`、`JudgeView`、`OrganizerJudging` 均已完成真实 API 接入。 | `PLAN-C.md`、`client/src/pages/works/WorksPage.tsx`、`client/src/pages/results/ResultsPage.tsx`、`client/src/pages/console/JudgeView.tsx`、`client/src/pages/console/OrganizerJudging.tsx` |
+| `DEV-C` 模块 C portfolio 前端接入 | 后端迁移、路由、app 激活、前端代理和测试脚本已完成；`WorksPage`、`ResultsPage`、`JudgeView`、`OrganizerJudging` 均已完成真实 API 接入；测试脚本已适配真实登录入口并通过 Git Bash 复跑。 | `docs/PLAN-C.md`、`client/src/pages/works/WorksPage.tsx`、`client/src/pages/results/ResultsPage.tsx`、`client/src/pages/console/JudgeView.tsx`、`client/src/pages/console/OrganizerJudging.tsx` |
 | `B` race-mgmt 第一至四阶段加固 | 已合入 `main` 并完成合并后验证：Race 状态流转、Race 级管理权限、smoke test、B 前端中文业务化、赛事状态推进、DCR 握手 / 禁用连接、CA 接收审计摘要和动态传输安全复查均已收口。 | `server/src/modules/race-mgmt/routes.ts`、`server/src/app.ts`、`server/src/shared/auth.ts`、`server/src/modules/race-mgmt/security-smoke-test.mjs`、`client/src/pages/race/RacePage.tsx`、`client/src/pages/console/OrganizerOverview.tsx`、`client/src/pages/console/RiderView.tsx` |
 | `DEV-5` CA 接入 / Projection / Live Hall | 已按新口径整改 CA 原始骑行状态消息草案：CAConnection 可在参赛过程中登记和握手，合法连接数据进入证据链，接入异常进入评审前风险提示；继续收敛投影规则、字段必填性、push / fetch 边界和幂等规则。 | `docs/ary-ca-integration-spec.md` |
 
@@ -34,7 +34,7 @@
 2. 后续高保真页面新增或整改时，使用 `.agents/skills/hifi-ui-page-workflow/SKILL.md`，先确认 IA 合约、数据面和已通过页面惯例，再进入页面实现和浏览器复审。
 3. 暂缓 `DEV-1` 架构设计进入，直到 `UX-1` 的高保真原型和关键页面状态被确认可作为输入。
 4. 复审 `PRD-TEMP-1` 整改后的 PRD、领域、IA、UX / 高保真原型、权限、QA、OPS 和 CA 契约一致性，确认是否可将临时任务并入正式 `PRD-1` 基线。
-5. 在有 Git Bash 的环境中复跑 `server/src/modules/portfolio/test.sh`，确认 shell 脚本入口与已通过的 Node 等价验证一致。
+5. 继续推进 DCR 真机联调、彩排发布和 OPS 值守准备，按 `审查与开发工作总结.md` 的剩余工作拆分责任人和验收证据。
 
 ## 执行纪律
 

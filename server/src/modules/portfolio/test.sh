@@ -40,11 +40,13 @@ trap cleanup EXIT
 setup_data() {
   cleanup_data
   ./node_modules/.bin/tsx --eval '
+    import { createHash } from "node:crypto";
     import { insert } from "./src/db.ts";
     const now = new Date().toISOString();
-    const user = (id, githubAccount, displayName, roles) => ({
-      id, githubAccount, github_account: githubAccount, displayName, display_name: displayName,
-      profileCompleted: true, profile_completed: 1, roles, createdAt: now, updatedAt: now,
+    const passwordHash = createHash("sha256").update("ary-salt-test-c-password").digest("hex");
+    const user = (id, username, displayName, roles) => ({
+      id, username, passwordHash, displayName,
+      profileCompleted: true, roles, createdAt: now, updatedAt: now,
       created_at: now, updated_at: now,
     });
     insert("users", user("test-c-rider", "test-c-rider", "Test C Rider", ["rider"]));
@@ -89,8 +91,8 @@ login() {
   local account="$1"
   local jar="$2"
   curl -fsS -c "$jar" -H "Content-Type: application/json" \
-    -d "{\"githubAccount\":\"$account\",\"displayName\":\"$account\"}" \
-    "$BASE_URL/auth/github" >/dev/null
+    -d "{\"username\":\"$account\",\"password\":\"test-c-password\"}" \
+    "$BASE_URL/auth/login" >/dev/null
 }
 
 request() {
