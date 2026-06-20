@@ -1,0 +1,8 @@
+.agents/
+.DS_Store
+node_modules/
+dist/
+database/data/
+*.db
+# tsc compilation artifacts in client source
+client/src/**/*.js
