@@ -26,6 +26,8 @@ export type AuthResult = { allowed: true } | { allowed: false; reason: string };
 declare module "express-session" {
   interface SessionData {
     userId?: string;
+    dcrLoginAttemptId?: string;
+    dcrState?: string;
     passport?: { user?: { id: string } };
   }
 }

@@ -91,15 +91,67 @@ export function registerIdentityRoutes(app: Express): void {
     });
   });
 
-  // ── GitHub OAuth ──
+  // ── DCR Peer Login ──
+  // DCR Desktop App calls this to register a login attempt before opening browser
+  auth.post("/peer-attempts", (req: Request, res: Response) => {
+    const { loginAttemptId, state, redirectUri, bindSecretHash, expiresAt, stateHash } = req.body;
+    if (!loginAttemptId || !state) {
+      res.status(400).json({ error: "loginAttemptId and state are required" });
+      return;
+    }
+    // Store attempt for callback verification
+    insert("dcr_login_attempts", {
+      loginAttemptId,
+      state,
+      redirectUri,
+      bindSecretHash,
+      expiresAt,
+      stateHash,
+      createdAt: new Date().toISOString(),
+    });
+    // Return the peerLoginUrl that DCR will open in browser
+    res.json({
+      loginAttemptId,
+      peerLoginUrl: `http://localhost:3001/auth/github/start?loginAttemptId=${encodeURIComponent(loginAttemptId)}&state=${encodeURIComponent(state)}`,
+    });
+  });
+
+  // DCR redirects user here → start GitHub OAuth
+  auth.get("/github/start", (req: Request, res: Response, next) => {
+    const { loginAttemptId, state } = req.query;
+    if (loginAttemptId) {
+      req.session.dcrLoginAttemptId = loginAttemptId as string;
+      req.session.dcrState = state as string;
+      req.session.save(() => next());
+    } else {
+      next();
+    }
+  }, passport.authenticate("github", { scope: ["user:email"] }));
+
+  // Regular GitHub OAuth (for web users)
   auth.get("/github", passport.authenticate("github", { scope: ["user:email"] }));
 
+  // GitHub OAuth callback
   auth.get(
     "/github/callback",
-    passport.authenticate("github", { failureRedirect: "/login" }),
+    passport.authenticate("github", { failureRedirect: "http://localhost:5173/login" }),
     (req: Request, res: Response) => {
       req.session.userId = (req.user as any).id;
-      req.session.save(() => res.redirect("http://localhost:5173/console"));
+      req.session.save(() => {
+        // If this was a DCR login, redirect back to DCR's peer-auth-bridge
+        if (req.session.dcrLoginAttemptId && req.session.dcrState) {
+          const attempt = findBy("dcr_login_attempts", "loginAttemptId", req.session.dcrLoginAttemptId) as any;
+          if (attempt?.redirectUri) {
+            const redirectUrl = new URL(attempt.redirectUri);
+            redirectUrl.searchParams.set("state", req.session.dcrState);
+            redirectUrl.searchParams.set("loginAttemptId", req.session.dcrLoginAttemptId);
+            redirectUrl.searchParams.set("userId", (req.user as any).id);
+            return res.redirect(redirectUrl.toString());
+          }
+        }
+        // Regular web login → go to console
+        res.redirect("http://localhost:5173/console");
+      });
     },
   );
 
