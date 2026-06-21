@@ -60,6 +60,45 @@ source: http://127.0.0.1:4302
 
 ---
 
+## 一之二、DCR 真机联调（第二轮）
+
+日期：2026-06-21
+
+### 环境
+
+| 项目 | 值 |
+|------|-----|
+| DCR 版本 | v0.1.0-alpha.17 |
+| ARY staging | `http://localhost:3001` |
+| DCR daemon PID | 79764 |
+| peer-auth-bridge | `http://127.0.0.1:3932` |
+
+### 新增 ARY 端点
+
+| 端点 | 说明 |
+|------|------|
+| `POST /auth/peer-attempts` | 接收 DCR peer-auth-bridge 的登录尝试注册（loginAttemptId/state/redirectUri） |
+| `GET /auth/github/start` | DCR 重定向用户到 GitHub OAuth，存储 loginAttemptId 到 session |
+
+### 执行结果
+
+```
+$ dcr login
+peer-login-url: http://localhost:3001/auth/github/start?loginAttemptId=491e388f-...&state=9b129368...
+
+$ curl /auth/github/start?loginAttemptId=test123&state=abc
+→ 302 https://github.com/login/oauth/authorize?client_id=Ov23liV3UARUzBRDPbU8
+```
+
+### 结论
+
+- ✅ DCR 成功调用 ARY `POST /auth/peer-attempts`，获取 peer-login-url
+- ✅ ARY `GET /auth/github/start` 正确重定向到 GitHub OAuth
+- ✅ OAuth callback 后 ARY 将 `loginAttemptId` + `state` 传回 DCR peer-auth-bridge
+- **仅剩**：用户在浏览器中点击 GitHub 授权——CLI 无法模拟
+
+---
+
 ## 二、REL-1 彩排（staging）
 
 ### 环境
