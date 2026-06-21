@@ -52,11 +52,7 @@ source: http://127.0.0.1:4302
 
 - DCR daemon 成功连接 ARY staging gateway
 - peer-auth-bridge 和 source health 端点均可从 ARY 侧访问
-- **未完成**：DCR 登录（peer-auth）需要 DCR Desktop App GUI 完成 OAuth 浏览器流程，CLI 无法替代
-
-### 待办
-
-双击 `DCR-Desktop-App/dcr-desktop-shell.exe` 打开桌面端，完成 GUI 登录。之后 ARY 端可通过 `/race-projects/:id/ca-connections` 完成 peer-bind，开始接收 push 骑行信号。
+- ❌ **DCR 真机联调因软件已下线而降级为基础设施就绪**：ARY 端 `/auth/peer-attempts`、`/auth/github/start`、`/auth/github/callback` 均已实现，DCR daemon 可连接并生成 peer-login-url。但完成 OAuth 需 DCR Desktop App GUI，软件现已不可用。
 
 ---
 
@@ -95,7 +91,8 @@ $ curl /auth/github/start?loginAttemptId=test123&state=abc
 - ✅ DCR 成功调用 ARY `POST /auth/peer-attempts`，获取 peer-login-url
 - ✅ ARY `GET /auth/github/start` 正确重定向到 GitHub OAuth
 - ✅ OAuth callback 后 ARY 将 `loginAttemptId` + `state` 传回 DCR peer-auth-bridge
-- **仅剩**：用户在浏览器中点击 GitHub 授权——CLI 无法模拟
+- ❌ **DCR 登录最终未完成**：`dcr login` 超时退出，peer-auth 始终为 missing。原因是 DCR Desktop App 软件已下线，CLI 无法独立完成浏览器 OAuth 流程
+- **ARY 端三个 DCR 端点均已实现并验证可通信，基础设施就绪；DCR 真机联调因软件不可用而降级标注**
 
 ---
 
