@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/e-vwTzoH)
-=======
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/j5hsaebf)
 # ARY 文档索引
 
-> **实际开发仓库**：[CHEF-Ch/ARY-3](https://github.com/CHEF-Ch/ARY-3)
 本文用于帮助 Agent 和开发者快速找到当前权威文档。根目录 `PLAN.md` 负责近期任务窗口，根目录 `STATUS.md` 负责任务瞬时看板。
 
 ## 文档路由
@@ -20,7 +15,7 @@
 | `ary-release-ops-plan.md` | 发布、监控、备份、值守和回滚要求。 |
 | `ary-ca-integration-spec.md` | CA 接入契约草案，定义参赛过程中 CAConnection 登记与握手、多 CAConnection、push / fetch 边界、骑行状态消息、Projection 输入和评审前风险提示。 |
 | `ux-hifi.taskbook.md` | UX-1 高保真原型任务书，定义视觉为主、体验为先的原型工作方式。 |
-| `registration-ca-rules-alignment.taskbook.md` | PRD-TEMP-1 临时任务书，承接报名、RaceProject 自动生成、CAConnection 动态接入和评审前风险提示的一致性整改。 |
+| `registration-ca-rules-alignment.taskbook.md` | PRD-TEMP-1 临时任务书，承接报名、RaceProject 自动生成、CAConnection 动态接入、评审前风险提示和接入审计线索的一致性整改。 |
 
 ## 阅读建议
 
@@ -30,4 +25,3 @@
 * 页面和体验问题：读 `ary-mvp.ia.md` 与 `ux-hifi.taskbook.md`，必要时参考 `../design-prototype/`。
 * 项目推进问题：读 `ary.plan.md`，再看根目录 `PLAN.md`。
 * 验收和上线问题：读 `ary-qa-plan.md` 与 `ary-release-ops-plan.md`。
->>>>>>> origin/merge-test
