@@ -15,7 +15,7 @@
 关键规则：
 
 * 实时 CA 接入是骑行过程证据、Projection 输入和评审参考，不是参赛资格硬门禁。
-* CAConnection 可在参赛过程中新增，但必须先完成登记和握手，后续数据才可进入有效 Projection、Evidence 或 Report 输入。
+* CAConnection 可在 registration、running、submitting 登记和握手；正式 Session 只在 running、submitting 接收；judging 起拒收新增连接和 Session 并保留审计。
 * RaceProject 聚合 CA 接入失败、无 CA 数据或空骑行应形成评审前风险提示，不自动取消该选手提交、评审或 Award 资格。
 * MVP 不接受事后上传 Session Summary 伪造实时 CA 证据；如作为说明材料引用，必须标记来源、时间和可信度。
 * 单个选手 RaceProject 聚合 CA 接入失败不应影响赛事整体展示和其他选手。

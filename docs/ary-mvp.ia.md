@@ -522,13 +522,13 @@ Console / Screen / {Race} / {Mode}
 | Race | completed | Results、Review、Winning Works、Rider Profile 优先 |
 | Race | archived | 作为 Past Race 和案例资产展示 |
 | Registration | submitted | Rider 可查看报名状态；Organizer 可审核 |
-| Registration | approved | ARY 自动生成 RaceProject；Rider 可进入参赛工作区，并在参赛过程中配置一个或多个 CAConnection |
+| Registration | approved | ARY 自动生成 RaceProject；Rider 可进入参赛工作区；registration、running、submitting 可登记和握手 CAConnection |
 | Registration | rejected | Rider 显示未通过状态，不进入参赛流程 |
 | Registration | withdrawn | Rider 显示退赛 / 取消参赛状态，不进入提交、评审、Award 流程 |
 | RaceProject | not_configured | Rider View 显示 CA Setup 和证据缺口提示，但不阻断 Work Submission |
 | RaceProject | connected / active | 显示已登记 CAConnection 和 Riding Status；Live Hall 可消费 Projection |
 | RaceProject | failed | 显示聚合 CA 接入异常，进入评审前风险提示；单个 CAConnection failed 作为连接异常展示 |
-| Work | draft | 仅 Rider 自己和授权 Organizer 可见 |
+| Work | draft | 仅 Rider 自己和授权 Organizer 可见；缺少标题或 repoUrl / demoUrl 时显示内容必填提示并保持 draft |
 | Work | submitted | 可进入评审和 Organizer 管理 |
 | Work | locked | Rider 不可继续编辑 |
 | Work | hidden | 不进入 Public Works |
@@ -544,11 +544,12 @@ Console / Screen / {Race} / {Mode}
 IA 行为：
 
 * Rider View 必须展示 CA 接入状态。
-* Rider 可在参赛过程中配置一个或多个 CAConnection。
+* Rider 可在 registration、running、submitting 配置和握手一个或多个 CAConnection；judging 起关闭新增入口。
+* 正式 CA Session 只在 running、submitting 接收；超窗消息拒收并形成审计线索。
 * CAConnection 必须先完成登记和握手，后续数据才进入 Projection、Evidence 或 Report 输入。
 * CA 未配置、无 CA 数据或接入异常时，Work Submission 仍可进入，但 Rider View 应提示证据缺口。
 * RaceProject 聚合 CA 接入 failed / not_configured 时，Rider View 展示接入异常或证据缺口，不展示自动退赛状态。
-* Organizer View 和 Judge View 应展示评审前风险提示，包括空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常。
+* Organizer View 和 Judge View 应展示由 ReviewFlag 派生的评审前风险提示，包括空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常；疑似违规只进入人工复核。
 * GitHub 只作为登录来源、作品代码入口或外部材料引用，不替代实时 CA 接入。
 
 ---
@@ -1194,6 +1195,7 @@ IA 规则：
 
 * Work Submission 不受 CA 接入状态硬门禁控制。
 * CA 未配置、无 CA 数据或接入异常时，Work Submission 可继续，但必须展示证据缺口和评审风险提示。
+* Work Submission 仍执行独立内容准入：标题以及 repoUrl / demoUrl 至少一项必填；缺失时保持 draft 并聚焦缺失字段。
 * 未登记、未握手、归属错误或被禁用的 CAConnection 信号不进入有效 Projection、Evidence 或 Report 输入。
 * RaceProject 聚合 CA 接入 failed / not_configured 时，Rider View 展示接入异常或证据缺口，不展示自动退赛状态。
 

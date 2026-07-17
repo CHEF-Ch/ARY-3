@@ -48,7 +48,7 @@
 交付范围：
 
 * PRD、领域模型、IA、权限矩阵、QA Plan、Project Plan、Release & Ops Plan 形成首轮基线。
-* CA Integration Spec 保留占位，后续架构阶段补齐。
+* CA Integration Spec 形成首版基线，明确登记 / 握手窗口、正式 Session 接收窗口、数据可信边界、风险提示和审计规则。
 
 不做什么：
 
@@ -62,7 +62,7 @@
 
 风险：
 
-* CA 接入细节暂缺，后续可能影响技术排期。
+* 不同 CA 平台适配器和真机联调仍可能影响技术排期，但核心对象与接收窗口不再留待实现阶段决定。
 
 是否可 demo：否。
 
@@ -111,9 +111,10 @@
 验收用例：
 
 * 一个 User 对同一 Race 最多一个 Registration。
-* 一个 Registration 最多一个 RaceProject 和一个主 Work；Registration approved 后由 ARY 幂等生成 RaceProject；一个 RaceProject 可在参赛过程中登记多个 CAConnection。
+* 一个 Registration 最多一个 RaceProject 和一个主 Work；Registration approved 后由 ARY 幂等生成 RaceProject；一个 RaceProject 可在 registration、running、submitting 登记和握手多个 CAConnection。
 * 只有已登记、已握手、归属正确且未禁用的 CAConnection 后续数据可以进入 Projection、Evidence 或 Report 输入。
 * RaceProject 聚合 CA 接入 failed / not_configured 不阻断提交、评审和 Award 流程，但应生成评审前风险提示。
+* Work Submission 独立要求非空标题以及 repoUrl / demoUrl 至少一项；疑似违规生成 ReviewFlag 并进入人工复核，不自动改变资格或结果。
 
 风险：
 
@@ -184,7 +185,7 @@
 * RaceProject 自动生成和状态查看入口。
 * Work 创建和提交的结构流程。
 * JudgeAssignment 和 JudgingRecord 基础结构流程。
-* 使用 mock eligibility 验证提交和评审路径。
+* 使用 mock 流程前置条件验证提交和评审路径。
 
 不做什么：
 
@@ -196,9 +197,9 @@
 验收用例：
 
 * Organizer 可以发布 Race 并审核报名。
-* Rider 可以在 mock eligibility 下验证 Work 提交流程。
-* Organizer 可以在 mock eligibility 下给 Judge 分配 Work。
-* Judge 可以在 mock eligibility 下验证评分和评语提交流程。
+* Rider 可以在 Registration approved 的 mock 前置条件下验证 Work 提交流程。
+* Organizer 可以在 Registration approved 的 mock 前置条件下给 Judge 分配 Work。
+* Judge 可以在有效 JudgeAssignment 的 mock 前置条件下验证评分和评语提交流程。
 
 风险：
 
@@ -212,8 +213,8 @@
 交付范围：
 
 * CA 实时接入基础版。
-* 参赛过程中 CAConnection 登记与握手校验。
-* 已登记且握手成功 CAConnection 骑行信号接入。
+* registration、running、submitting 的 CAConnection 登记与握手校验。
+* running、submitting 期间已登记且握手成功 CAConnection 骑行信号接入。
 * GitHub Repo / 代码材料绑定和引用。
 * 多 CAConnection 接入状态追踪与 RaceProject 聚合状态。
 * Riding Metrics 基础摘要。
@@ -230,6 +231,7 @@
 * 接入成功的 Registration 可以形成骑行证据、Projection 和评审摘要。
 * RaceProject 聚合接入 failed / not_configured 的 Registration 仍可进入提交、评审和 Award 流程，但必须生成评审前风险提示。
 * 未登记、未握手、归属错误或被禁用的 CAConnection 数据不进入 Projection、Evidence 或 Report。
+* judging 起新增 CAConnection、握手和正式 Session 均被拒绝；拒收形成接入审计但不改变参赛资格。
 * 部分 CAConnection 接入失败不影响 Live Hall 整体展示。
 * Projection 失败不污染事实数据。
 

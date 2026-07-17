@@ -47,6 +47,10 @@
 * Race status 可以按预期流转。
 * Registration approved 后 RaceProject 自动幂等生成，Registration、RaceProject、Work、JudgeAssignment、JudgingRecord、Award、Report 可以形成闭环。
 * RaceProject 聚合 CA 接入 failed / not_configured 不阻断 Work Submission、评审和 Award 流程，但必须形成评审前风险提示。
+* CA 消息因未登记、未握手、归属错误、连接禁用、签名错误或重放而被拒收时，必须留下可追溯审计记录；评审侧只读取脱敏摘要，且拒收不得触发 Registration、提交、评审或 Award 的资格拒绝。
+* registration / running / submitting 可登记和握手 CAConnection；仅 running / submitting 接收正式 Session；judging 起两类请求均拒绝并留下可复核结果。
+* Work 缺少标题或 repoUrl / demoUrl 时保持 draft 并拒绝提交；相同 Work 在 CA failed / not_configured 但内容完整时仍可提交。
+* 疑似违规生成 ReviewFlag 并进入 Organizer 人工处理，系统不得自动改变 Registration、JudgingRecord 或 Award。
 
 ## 2.2 角色路径测试
 
@@ -93,6 +97,7 @@
 * 单个选手绑定多个 CAConnection，部分 CAConnection 接入失败但仍有可用连接。
 * 单个选手绑定多个 CAConnection，全部 CAConnection 接入失败。
 * 参赛过程中新增多个 CAConnection，并在登记和握手成功后接入骑行数据。
+* registration 阶段预登记和握手，running / submitting 接收正式 Session，judging 后新增连接和 Session 均被拒绝并审计。
 * 未登记、未握手、归属错误或被禁用的 CAConnection 尝试 push 骑行信号或提供 Session Snapshot。
 * RaceProject Aggregate Ingestion Status 覆盖 not_configured、connected、active、failed。
 * CAConnection Ingestion Status 覆盖 not_configured、connected、active、failed。
@@ -108,6 +113,8 @@
 * 部分或全部 CAConnection failed 时，该 Registration 不应被自动视为退赛。
 * 未登记、未握手、归属错误或被禁用的 CAConnection 数据不得进入 Projection、Evidence、Report 或评审摘要。
 * not_configured / failed 时可以完成 Work Submission，但必须生成证据缺口或接入异常风险提示；connected / active 时展示正常证据状态。
+* failed 时仍可完成 JudgeAssignment、JudgingRecord 提交和 Award 创建 / 发布，Organizer / Judge 可从风险提示追溯到非敏感接入审计摘要。
+* 签名错误、重放或禁用连接的消息不进入 Session、Evidence、Projection 或 Report 输入，但对应 Registration 的业务流程保持可用。
 * 部分选手接入失败不影响 Public Site、Live Hall、Screen Console 和其他选手。
 * 重复同步不应生成重复事实或污染 Projection。
 * GitHub 代码材料不能替代实时 CA 接入。

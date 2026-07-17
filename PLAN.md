@@ -14,7 +14,7 @@
 | 任务 | 目标 | 下一入口 |
 | --- | --- | --- |
 | `PRD-1` 文档基线与范围确认 | 完成首轮文档一致性检查，确认能否作为架构入口。 | `docs/ary.plan.md` |
-| `PRD-TEMP-1` 报名 / RaceProject / CA 参赛语义整改 | 已完成首轮整改并进入待复审：PRD、领域、CA 契约、IA、UX / 高保真原型、权限、QA、OPS 和计划文档已同步新口径。 | `docs/registration-ca-rules-alignment.taskbook.md` |
+| `PRD-TEMP-1` 报名 / RaceProject / CA 参赛语义整改 | v0.4 一致性整改完成并待复审：核心对象、CAConnection 登记 / 握手窗口、正式 Session 接收窗口、作品内容准入和疑似违规处理已冻结，旧锁定模型已清理。 | `docs/registration-ca-rules-alignment.taskbook.md` |
 | `UX-1` UX/UI 高保真原型与设计基线 | 已产出 IA 对齐版 1080P 高密度高保真原型，后续页面按高保真页面工作流继续深化。 | `docs/ux-hifi.taskbook.md`、`.agents/skills/hifi-ui-page-workflow/SKILL.md`、`design-prototype/index.html` |
 | `DEV-1` 领域模型 + 权限 + 数据模型 | 输出聚合边界、数据模型草案和接口鉴权规则。 | `docs/ary-domain-analysis.v0.3.md` |
 | `DEV-C` 模块 C portfolio 前端接入 | 后端迁移、路由、app 激活、前端代理和测试脚本已完成；`WorksPage`、`ResultsPage`、`JudgeView`、`OrganizerJudging` 均已完成真实 API 接入；测试脚本已适配真实登录入口并通过 Git Bash 复跑。 | `docs/PLAN-C.md`、`client/src/pages/works/WorksPage.tsx`、`client/src/pages/results/ResultsPage.tsx`、`client/src/pages/console/JudgeView.tsx`、`client/src/pages/console/OrganizerJudging.tsx` |
@@ -33,7 +33,7 @@
 1. 评审 `UX-1` IA 对齐版 1080P 高密度高保真原型，重点确认首页 Public Header、Race Gallery 层级、具体内容卡、蓝白竞赛视觉、Console 气质和 Screen Display 表达。
 2. 后续高保真页面新增或整改时，使用 `.agents/skills/hifi-ui-page-workflow/SKILL.md`，先确认 IA 合约、数据面和已通过页面惯例，再进入页面实现和浏览器复审。
 3. 暂缓 `DEV-1` 架构设计进入，直到 `UX-1` 的高保真原型和关键页面状态被确认可作为输入。
-4. 复审 `PRD-TEMP-1` 整改后的 PRD、领域、IA、UX / 高保真原型、权限、QA、OPS 和 CA 契约一致性，确认是否可将临时任务并入正式 `PRD-1` 基线。
+4. 复审 `PRD-TEMP-1` v0.4 一致性整改结果，确认核心对象、接入窗口、ReviewFlag、内容准入和人工违规处理规则可并入正式 `PRD-1` 基线。
 5. 继续推进 DCR 真机联调、彩排发布和 OPS 值守准备，按 `审查与开发工作总结.md` 的剩余工作拆分责任人和验收证据。
 
 ## 执行纪律

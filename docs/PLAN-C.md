@@ -456,7 +456,7 @@ function getReviewWarningsForRegistration(registrationId: string): ReviewWarning
 3. 若没有 RaceProject，返回 `missing_race_project` 警告。
 4. 若 `aggregate_ingestion_status === "not_configured"`，返回 `ca_not_configured` 警告。
 5. 若 `aggregate_ingestion_status === "failed"`，返回 `ca_ingestion_failed` 警告。
-6. 可选读取 `ca_connections`，把全部 failed 或无连接作为 warning detail，不阻断 Work Submission、JudgingRecord 或 Award。
+6. 可选读取 `ca_connections`，把全部 failed 或无连接映射为 ReviewFlag 的 warning detail，不阻断 Work Submission、JudgingRecord 或 Award。
 
 警告对象建议 API 字段：
 

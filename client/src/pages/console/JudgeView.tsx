@@ -194,6 +194,11 @@ export default function JudgeView() {
                         <div key={`${warning.registrationId}-${warning.code}`}>
                           <strong>{warning.code}</strong>
                           <p style={{ margin: "4px 0 0" }}>{warning.message}</p>
+                          {warning.auditSummary ? (
+                            <p style={{ margin: "4px 0 0", fontSize: 12 }}>
+                              审计线索 {warning.auditSummary.latestEventId}：共 {warning.auditSummary.eventCount} 条，最近原因为 {warning.auditSummary.latestReason}，发生于 {new Date(warning.auditSummary.latestReceivedAt).toLocaleString()}。
+                            </p>
+                          ) : null}
                         </div>
                       ))}
                     </div>

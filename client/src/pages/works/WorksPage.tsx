@@ -261,6 +261,11 @@ function WorkDetail({ work, user, raceMap }: { work: WorkResponse; user: any | n
                 <div key={`${warning.registrationId}-${warning.code}`} style={warningItemStyle}>
                   <strong>{warning.code}</strong>
                   <p style={{ ...muted, margin: "6px 0 0" }}>{warning.message}</p>
+                  {warning.auditSummary ? (
+                    <p style={{ ...muted, margin: "6px 0 0", fontSize: 12 }}>
+                      审计线索 {warning.auditSummary.latestEventId}：共 {warning.auditSummary.eventCount} 条，最近原因为 {warning.auditSummary.latestReason}，发生于 {formatDate(warning.auditSummary.latestReceivedAt)}。
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>

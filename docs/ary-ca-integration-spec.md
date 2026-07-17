@@ -15,8 +15,10 @@
 当前阶段先定义原始骑行状态消息草案，用于后续继续讨论和收敛。PRD 已明确产品级规则：
 
 * 实时 CA 接入是骑行过程证据、Projection 输入和评审参考，不是参赛资格硬门禁。
-* CAConnection 可在参赛过程中新增；每个 CAConnection 必须先登记和握手，后续数据才可进入有效证据链。
+* CAConnection 可在 registration、running、submitting 登记和握手；每个 CAConnection 完成校验后，仅 running、submitting 期间的数据可进入有效证据链。
 * RaceProject 聚合 CA 接入 failed / not_configured 表达证据缺口或接入异常，进入评审前风险提示，不自动取消 Registration 的提交、评审或 Award 资格。
+* CA 数据接收校验只决定消息能否进入 Session、Evidence、Projection 或 Report 输入；拒收结果必须形成可追溯审计线索，不得上升为 Registration、Work Submission、JudgingRecord 或 Award 的资格判定。
+* Organizer / Judge 可读取与风险提示关联的非敏感审计摘要；nonce、签名、密钥、payload hash 和原始载荷不得通过评审提示暴露。
 * MVP 不接受事后上传 Session Summary 伪造实时 CA 证据。
 * GitHub 代码材料不能替代实时 CA 接入。
 
@@ -75,11 +77,11 @@ CAConnection 登记与握手可发生在参赛过程中，目标是把选手准�
 * 每个 CAConnection 必须通过 ARY CA Connector 与 ARY 完成握手和状态校验。
 * CAConnection 登记成功后，ARY 记录 `registeredAt`、`caType`、`connectorId`、`connectorVersion`、`caProjectId` 和 `ingestionStatus=connected`。
 * GitHub Repo / 代码材料不能替代 CAConnection 登记。
-* Race 处于 running / submitting 且尚未进入 judging 前，Rider 可继续新增 CAConnection；具体截止窗口由 Race Rules 另行定义。
+* Race 处于 registration / running / submitting 时，Rider 可登记和握手 CAConnection；进入 judging 后关闭新增和握手。该窗口即 MVP Race Rules。
 
 ## 3.2 实时接入阶段
 
-实时接入阶段的目标是只接收已登记且握手成功 CAConnection 的骑行信号，并把这些信号作为比赛过程数据源。
+实时接入阶段的目标是在 running / submitting 期间只接收已登记且握手成功 CAConnection 的骑行信号，并把这些信号作为比赛过程数据源；其他 Race Status 的消息拒收并记录 `race_not_accepting_sessions` 审计事件。
 
 实时接入规则：
 
@@ -251,7 +253,7 @@ ARY 接收 `RidingSignalMessage` 前必须先校验 `ca.caConnectionId` 是否�
     }
   ],
   "summary": {
-    "currentGoal": "Implement DEV-12 registration eligibility gate",
+    "currentGoal": "Implement DEV-12 registration workflow",
     "latestActivity": "Added status transition check and ran tests",
     "riskLevel": "medium",
     "riskReason": "One failing test remains near task deadline"
@@ -352,7 +354,7 @@ GET /ary/ca/connections/{caConnectionId}/sessions/{caSessionId}/snapshot
     }
   ],
   "summary": {
-    "currentGoal": "Implement DEV-12 registration eligibility gate",
+    "currentGoal": "Implement DEV-12 registration workflow",
     "latestActivity": "Added status transition check and ran tests",
     "riskLevel": "medium",
     "riskReason": "One failing test remains near task deadline"

@@ -165,8 +165,8 @@ async function main() {
 
   try {
     await wait(2000);
-    const org = parseJson(await curl(["-c", orgCookie, "-H", "Content-Type: application/json", "--data-binary", `@${writeJson("org", { githubAccount: "smoke-org", displayName: "Smoke Organizer" })}`, `${base}/auth/github`]));
-    await curl(["-c", riderCookie, "-H", "Content-Type: application/json", "--data-binary", `@${writeJson("rider", { githubAccount: "smoke-rider", displayName: "Smoke Rider" })}`, `${base}/auth/github`]);
+    const org = parseJson(await curl(["-c", orgCookie, "-H", "Content-Type: application/json", "--data-binary", `@${writeJson("org", { username: "smoke-org", password: "smoke-password", displayName: "Smoke Organizer" })}`, `${base}/auth/register`]));
+    await curl(["-c", riderCookie, "-H", "Content-Type: application/json", "--data-binary", `@${writeJson("rider", { username: "smoke-rider", password: "smoke-password", displayName: "Smoke Rider" })}`, `${base}/auth/register`]);
     setOrganizerRole(org.userId);
 
     const race = await postJson(`${base}/races`, { title: "Smoke Race", slug: "smoke-race", challenge: "Race management smoke test." }, orgCookie);
@@ -184,6 +184,7 @@ async function main() {
     assert(approvedAgain.raceProject.id === projectId, "Expected repeated approval to reuse the same RaceProject");
 
     const connection = await postJson(`${base}/race-projects/${projectId}/ca-connections`, { caType: "codex", connectorVersion: "dcr-smoke" }, riderCookie);
+    await curl(["-b", orgCookie, "-X", "PATCH", "-H", "Content-Type: application/json", "--data-binary", `@${writeJson("race-running", { status: "running" })}`, `${base}/races/${race.id}`]);
     const unverified = makeEnvelope(connection.connectionSecret, connection, projectId, "smoke-nonce-unverified", 1);
     const unverifiedPush = await postJsonWithStatus(`${base}/ca-connections/${connection.id}/sessions/push`, unverified);
     assert(unverifiedPush.status === 403 && unverifiedPush.body.reason === "handshake_not_verified", "Expected unverified connection push to be rejected");
@@ -226,6 +227,18 @@ async function main() {
     const oversizedRejected = await postJsonWithStatus(`${base}/ca-connections/${connection.id}/sessions/push`, oversizedPayload);
     assert(oversizedRejected.status === 403 && oversizedRejected.body.reason === "payload_too_large", "Expected oversized payload to be rejected");
 
+    const failedHandshakeConnection = await postJson(`${base}/race-projects/${projectId}/ca-connections`, { caType: "codex", connectorVersion: "dcr-smoke-failed-handshake" }, riderCookie);
+    const failedHandshake = await postJsonWithStatus(`${base}/ca-connections/${failedHandshakeConnection.id}/handshake`, {
+      connectorId: failedHandshakeConnection.connectorId,
+      challenge: failedHandshakeConnection.handshakeChallenge,
+      securityVersion: "dcr-hmac-v1",
+      signatureAlgorithm: "HMAC-SHA256",
+      signature: "00",
+    }, riderCookie);
+    assert(failedHandshake.status === 403, "Expected invalid handshake to be rejected");
+    const failedHandshakeReview = await getJson(`${base}/ca-connections/${failedHandshakeConnection.id}/ingestion-review`, orgCookie);
+    assert(failedHandshakeReview.audits.some((audit) => audit.reason === "handshake_verification_failed"), "Expected failed handshake to create an audit event");
+
     const disabledConnection = await postJson(`${base}/race-projects/${projectId}/ca-connections`, { caType: "codex", connectorVersion: "dcr-smoke-disabled" }, riderCookie);
     await postJson(`${base}/ca-connections/${disabledConnection.id}/handshake`, {
       connectorId: disabledConnection.connectorId,
@@ -240,12 +253,26 @@ async function main() {
       makeEnvelope(disabledConnection.connectionSecret, disabledConnection, projectId, "smoke-nonce-disabled", 1),
     );
     assert(disabledPush.status === 403 && disabledPush.body.reason === "connection_disabled", "Expected disabled connection push to be rejected");
+    const disabledReview = await getJson(`${base}/ca-connections/${disabledConnection.id}/ingestion-review`, orgCookie);
+    assert(disabledReview.summary.rejectedEvents >= 2, "Expected disabled connection lifecycle and push rejections to be counted as audit events");
+    assert(disabledReview.audits.some((audit) => audit.reason === "connection_disabled"), "Expected connection disable to create an audit event");
+
+    await patchJsonWithStatus(`${base}/races/${race.id}`, { status: "submitting" }, orgCookie);
+    await patchJsonWithStatus(`${base}/races/${race.id}`, { status: "judging" }, orgCookie);
+    const lateConnection = await postJsonWithStatus(`${base}/race-projects/${projectId}/ca-connections`, { caType: "codex", connectorVersion: "dcr-smoke-late" }, riderCookie);
+    assert(lateConnection.status === 409, "Expected judging race to reject new CAConnection registration");
+    const lateSession = await postJsonWithStatus(
+      `${base}/ca-connections/${connection.id}/sessions/push`,
+      makeEnvelope(connection.connectionSecret, connection, projectId, "smoke-nonce-after-window", 3),
+    );
+    assert(lateSession.status === 409 && lateSession.body.reason === "race_not_accepting_sessions", "Expected judging race to reject CA sessions without changing participation state");
 
     const review = await getJson(`${base}/ca-connections/${connection.id}/ingestion-review`, orgCookie);
     const status = await getJson(`${base}/race-projects/${projectId}/status-review`, orgCookie);
 
     assert(review.summary.acceptedSessions === 2, "Expected accepted sessions to include valid push after nonce poisoning attempt");
     assert(review.summary.rejectedPushes >= 4, "Expected rejected attack pushes");
+    assert(review.audits.some((audit) => audit.reason === "race_not_accepting_sessions"), "Expected out-of-window session rejection to be audited");
     assert(review.audits.every((audit) => audit.nonce === undefined && audit.payload_hash === undefined && audit.payloadHash === undefined), "Expected ingestion review to redact nonce and payload hash");
     assert(status.raceProject.aggregateIngestionStatus === "active", "Expected RaceProject active status");
 
@@ -259,6 +286,9 @@ async function main() {
       repeatedApprovalIdempotent: approvedAgain.raceProject.id === projectId,
       invalidStatusTransitionRejected: invalidStatus.status === 409,
       rejectedNonceDoesNotBurn: legalAfterPoisonAccepted.status === 201,
+      failedHandshakeAudited: true,
+      connectionDisableAudited: true,
+      acceptanceWindowEnforced: true,
     }, null, 2));
   } finally {
     server.kill();

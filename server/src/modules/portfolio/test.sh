@@ -13,13 +13,13 @@ cd "$SERVER_DIR"
 cleanup_data() {
   ./node_modules/.bin/tsx --eval '
     import { findAll, remove } from "./src/db.ts";
-    const testIds = new Set(["test-c-rider","test-c-organizer","test-c-judge","test-c-judge-2","test-c-outsider","test-c-race","test-c-registration","test-c-race-project"]);
+    const testIds = new Set(["test-c-rider","test-c-rider-2","test-c-organizer","test-c-judge","test-c-judge-2","test-c-outsider","test-c-race","test-c-registration","test-c-registration-2","test-c-race-project","test-c-race-project-2","test-c-ingestion-audit"]);
     const testWorkIds = new Set(findAll("works").filter((r) => testIds.has(r.registration_id) || testIds.has(r.race_id) || testIds.has(r.user_id) || String(r.slug || "").startsWith("test-c-")).map((r) => r.id));
     const testAssignmentIds = new Set(findAll("judge_assignments").filter((r) => testWorkIds.has(r.work_id) || testIds.has(r.judge_user_id) || testIds.has(r.assigned_by_user_id)).map((r) => r.id));
     const testRecordIds = new Set(findAll("judging_records").filter((r) => testAssignmentIds.has(r.judge_assignment_id)).map((r) => r.id));
-    for (const table of ["evidences","awards"]) {
+    for (const table of ["evidences","awards","ingestion_audits"]) {
       for (const row of findAll(table)) {
-        if (testIds.has(row.registration_id) || testIds.has(row.race_id) || testWorkIds.has(row.work_id) || testIds.has(row.created_by_user_id)) remove(table, row.id);
+        if (testIds.has(row.id) || testIds.has(row.registration_id) || testIds.has(row.race_id) || testIds.has(row.race_project_id) || testWorkIds.has(row.work_id) || testIds.has(row.created_by_user_id)) remove(table, row.id);
       }
     }
     for (const table of ["judging_records"]) for (const row of findAll(table)) if (testRecordIds.has(row.id)) remove(table, row.id);
@@ -50,6 +50,7 @@ setup_data() {
       created_at: now, updated_at: now,
     });
     insert("users", user("test-c-rider", "test-c-rider", "Test C Rider", ["rider"]));
+    insert("users", user("test-c-rider-2", "test-c-rider-2", "Test C Rider 2", ["rider"]));
     insert("users", user("test-c-organizer", "test-c-organizer", "Test C Organizer", ["organizer"]));
     insert("users", user("test-c-judge", "test-c-judge", "Test C Judge", ["judge"]));
     insert("users", user("test-c-judge-2", "test-c-judge-2", "Test C Judge 2", ["judge"]));
@@ -64,10 +65,24 @@ setup_data() {
       id: "test-c-registration", race_id: "test-c-race", user_id: "test-c-rider", status: "approved",
       submitted_at: now, approved_at: now, rejected_at: null, withdrawn_at: null, created_at: now, updated_at: now,
     });
+    insert("registrations", {
+      id: "test-c-registration-2", race_id: "test-c-race", user_id: "test-c-rider-2", status: "approved",
+      submitted_at: now, approved_at: now, rejected_at: null, withdrawn_at: null, created_at: now, updated_at: now,
+    });
     insert("race_projects", {
       id: "test-c-race-project", registration_id: "test-c-registration", race_id: "test-c-race",
       user_id: "test-c-rider", repo_url: null, aggregate_ingestion_status: "failed",
       connection_health: "partial_failed", last_synced_at: null, created_at: now, updated_at: now,
+    });
+    insert("race_projects", {
+      id: "test-c-race-project-2", registration_id: "test-c-registration-2", race_id: "test-c-race",
+      user_id: "test-c-rider-2", repo_url: null, aggregate_ingestion_status: "not_configured",
+      connection_health: "no_signal", last_synced_at: null, created_at: now, updated_at: now,
+    });
+    insert("ingestion_audits", {
+      id: "test-c-ingestion-audit", ca_connection_id: "test-c-ca", race_project_id: "test-c-race-project",
+      connector_id: "test-c-connector", accepted: false, reason: "signature_mismatch", detail: "sensitive detail",
+      nonce: "sensitive-nonce", sequence: 7, payload_hash: "sensitive-payload-hash", received_at: now,
     });
   '
 }
@@ -138,10 +153,12 @@ setup_data
 start_server
 
 RIDER_COOKIE="$TMP_DIR/rider.cookie"
+RIDER_2_COOKIE="$TMP_DIR/rider-2.cookie"
 ORGANIZER_COOKIE="$TMP_DIR/organizer.cookie"
 JUDGE_COOKIE="$TMP_DIR/judge.cookie"
 OUTSIDER_COOKIE="$TMP_DIR/outsider.cookie"
 login test-c-rider "$RIDER_COOKIE"
+login test-c-rider-2 "$RIDER_2_COOKIE"
 login test-c-organizer "$ORGANIZER_COOKIE"
 login test-c-judge "$JUDGE_COOKIE"
 login test-c-outsider "$OUTSIDER_COOKIE"
@@ -151,6 +168,8 @@ STATUS="$(request POST /works "$RIDER_COOKIE" '{"registrationId":"test-c-registr
 expect_status "$STATUS" 201 "work create owner" "$OUT"
 WORK_ID="$(json_get "$OUT" "data.id")"
 json_assert "$OUT" "data.reviewWarnings.some((w) => w.code === 'ca_ingestion_failed')" "work response includes review warning"
+json_assert "$OUT" "data.reviewWarnings.some((w) => w.auditSummary && w.auditSummary.eventCount === 1 && w.auditSummary.latestEventId === 'test-c-ingestion-audit' && w.auditSummary.latestReason === 'signature_mismatch')" "work warning includes non-sensitive audit summary"
+json_assert "$OUT" "data.reviewWarnings.every((w) => !w.auditSummary || (w.auditSummary.detail === undefined && w.auditSummary.nonce === undefined && w.auditSummary.sequence === undefined && w.auditSummary.payloadHash === undefined))" "work warning audit summary redacts sensitive ingestion fields"
 
 STATUS="$(request POST /works "$RIDER_COOKIE" '{"registrationId":"test-c-registration","title":"Duplicate"}' "$TMP_DIR/dup-work.json")"
 expect_status "$STATUS" 409 "work duplicate registration rejected" "$TMP_DIR/dup-work.json"
@@ -160,6 +179,13 @@ STATUS="$(request POST "/works/$WORK_ID/submit" "$RIDER_COOKIE" '{"title":"Test 
 expect_status "$STATUS" 400 "work submit requires repo or demo" "$TMP_DIR/submit-missing.json"
 STATUS="$(request POST "/works/$WORK_ID/submit" "$RIDER_COOKIE" '{"repoUrl":"https://example.test/repo"}' "$TMP_DIR/submit.json")"
 expect_status "$STATUS" 200 "work submit owner" "$TMP_DIR/submit.json"
+
+STATUS="$(request POST /works "$RIDER_2_COOKIE" '{"registrationId":"test-c-registration-2","title":"No CA Work"}' "$TMP_DIR/no-ca-work.json")"
+expect_status "$STATUS" 201 "work create with CA not configured" "$TMP_DIR/no-ca-work.json"
+NO_CA_WORK_ID="$(json_get "$TMP_DIR/no-ca-work.json" "data.id")"
+json_assert "$TMP_DIR/no-ca-work.json" "data.reviewWarnings.some((w) => w.code === 'ca_not_configured')" "not configured work includes review warning"
+STATUS="$(request POST "/works/$NO_CA_WORK_ID/submit" "$RIDER_2_COOKIE" '{"repoUrl":"https://example.test/no-ca-repo"}' "$TMP_DIR/no-ca-submit.json")"
+expect_status "$STATUS" 200 "CA not configured does not block work submission" "$TMP_DIR/no-ca-submit.json"
 STATUS="$(request POST "/works/$WORK_ID/lock" "$ORGANIZER_COOKIE" '' "$TMP_DIR/lock.json")"
 expect_status "$STATUS" 200 "work lock organizer" "$TMP_DIR/lock.json"
 STATUS="$(request PATCH "/works/$WORK_ID" "$RIDER_COOKIE" '{"summary":"after lock"}' "$TMP_DIR/patch-locked.json")"

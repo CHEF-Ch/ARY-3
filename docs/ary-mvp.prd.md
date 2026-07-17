@@ -346,10 +346,13 @@ MVP 固定评分项只作为评委填写说明，不建模为可配置 Score Rub
 
 * Registration 进入 approved 后，ARY 必须幂等生成且仅生成一个 RaceProject。
 * 实时 CA 数据是骑行过程证据、Projection 输入和评审参考，不是参赛资格硬门禁；CA 接入失败、无 CA 数据或空骑行不自动取消 Registration 的提交、评审或 Award 资格。
-* CAConnection 可在参赛过程中新增；每个 CAConnection 必须先完成登记和握手，之后产生的数据才可进入有效 Projection、Evidence 或 Report 输入。
+* CA 消息真实性、归属、握手、禁用和防重放校验属于数据接收边界；拒收只阻止不可信消息进入事实链，并形成风险提示和审计线索，不改变参赛资格。
+* CAConnection 可在 registration、running、submitting 登记和握手；每个 CAConnection 完成校验后，仅 running、submitting 期间的数据可进入有效 Projection、Evidence 或 Report 输入。
+* CAConnection 可在 registration、running、submitting 阶段登记和握手；正式 CA Session 只在 running、submitting 阶段接收，进入 judging 后关闭新增连接和正式 Session 接收。
 * MVP 不接受事后手动上传 Session Summary 伪造实时 CA 证据；如作为说明材料引用，必须标记来源、时间和可信度。
 * GitHub 只作为登录来源、作品代码入口或 Evidence 外部材料引用，不能替代实时 CA 接入。
-* 系统应在评审前识别空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常，并在 Organizer / Judge 工作流中提示。
+* Work Submission 的内容准入独立于 CA：标题以及 repoUrl / demoUrl 至少一项属于 MVP 必填材料，缺失时保持 draft 并拒绝提交；CA failed / not_configured 不参与该准入判断。
+* 系统应在评审前识别空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常并生成 ReviewFlag；疑似违规只进入 Organizer 人工处理和 Judge 参考，不自动改变 Registration、评审或 Award 资格。
 * Projection 只服务过程展示和大屏，不作为最终结果事实源。
 * 最终赛果读取 Award、Report 或 `leaderboard_read_model`。
 * 原始 CA Session 默认不公开，公开端只读取摘要、Evidence、Projection、已公开 Work、已发布 Award、已发布且公开可见的 Report 或公开 Rider Profile。
@@ -372,7 +375,7 @@ MVP 固定评分项只作为评委填写说明，不建模为可配置 Score Rub
 | JudgeAssignment / JudgingRecord | 评审分配和评审事实，支撑评分、评语、榜单草稿和报告 | `ary-domain-analysis.v0.3.md`、`ary-permission-matrix.md` |
 | Award / Leaderboard | 奖项结果与最终榜单读取模型，表达赛后结果 | `ary-domain-analysis.v0.3.md` |
 | Evidence | 支撑骑行能力评价、报告和公开摘要的证据事实 | `ary-domain-analysis.v0.3.md`、`ary-permission-matrix.md` |
-| Review Flag / Review Readiness | 评审前风险提示和材料完整度检查，用于提示空骑行、无 CA 数据、空作品、缺材料、疑似违规和接入异常 | `ary-domain-analysis.v0.3.md`、`ary-mvp.ia.md` |
+| ReviewFlag | 评审前风险事实，用于记录空骑行、无 CA 数据、空作品、缺材料、疑似违规和接入异常；CA 异常可关联非敏感接入审计摘要，API 通过 `reviewWarnings` 展示 | `ary-domain-analysis.v0.3.md`、`ary-mvp.ia.md` |
 | Report | 评审后形成的选手报告、赛事报告和评审总结 | `ary-domain-analysis.v0.3.md` |
 | Projection / Read Model | 过程展示和页面读取数据，可重算，不作为最终事实源 | `ary-domain-analysis.v0.3.md`、`ary-mvp.ia.md` |
 
@@ -388,9 +391,9 @@ MVP 固定评分项只作为评委填写说明，不建模为可配置 Score Rub
 | Registration Status | 驱动报名审核、参赛工作区生成和后续流程准入 | Registration approved 后由 ARY 自动生成 RaceProject；CA 接入状态不驱动 Registration withdrawn |
 | RaceProject Aggregate Ingestion Status | 驱动聚合 CA 接入健康度展示、Projection 输入、证据完整度和异常处理 | 应覆盖 not_configured、connected、active、failed；failed / not_configured 进入评审前风险提示，不自动取消提交、评审或 Award 资格 |
 | CAConnection Ingestion Status | 驱动单个 CA 接入状态展示、connector 异常定位和 Projection 输入 | 应覆盖 not_configured、connected、active、failed；单个 failed 只表达连接异常和证据缺口 |
-| CAConnection Acceptance Window | 驱动参赛过程中 CAConnection 新增和数据接收边界 | Rider 可在参赛过程中新增 CAConnection；未登记、未握手、归属错误或被禁用的连接数据不得进入有效 Projection、Evidence 或 Report 输入 |
-| Work Status | 驱动作草稿、提交、锁定和公开展示 | 获奖由 Award 推导，不在 Work Status 中重复保存 |
-| Review Readiness / Review Flag | 驱动评审前风险提示、材料完整度提示和 Judge 评审上下文 | 空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常应提示 Organizer / Judge，但不自动替代人工评审 |
+| CAConnection Acceptance Window | 驱动 CAConnection 登记 / 握手和正式 Session 接收边界 | registration、running、submitting 可登记和握手；running、submitting 接收正式 Session；judging 起关闭两类接收，但不改变参赛资格 |
+| Work Status | 驱动作草稿、提交、锁定和公开展示 | 标题以及 repoUrl / demoUrl 至少一项是提交内容准入；CA 状态不参与内容准入；获奖由 Award 推导 |
+| ReviewFlag | 驱动评审前风险提示和 Judge 评审上下文 | 风险只提示 Organizer / Judge 并支持人工处理，不自动替代评分、Registration 状态或 Award 决策 |
 | Report Status | 驱动报告生成、审核和公开发布 | 未发布 Report 不出现在 Public Site |
 
 ---

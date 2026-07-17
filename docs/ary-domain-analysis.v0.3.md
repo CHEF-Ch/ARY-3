@@ -149,10 +149,10 @@ MVP 关键约束：
 | Registration Status | 报名状态 | submitted、approved、rejected、withdrawn；CA 接入状态不驱动 withdrawn |
 | RaceProject Aggregate Ingestion Status | CA 聚合接入健康度 | not_configured、connected、active、failed；failed / not_configured 表达证据缺口或接入异常，进入评审前风险提示 |
 | CAConnection Ingestion Status | 单个 CA 接入状态 | not_configured、connected、active、failed；failed 表达单个连接异常和证据缺口 |
-| CAConnection Acceptance Window | CA 接入接收窗口 | Rider 可在参赛过程中新增 CAConnection；未登记、未握手、归属错误或被禁用的连接数据不得进入有效 Projection、Evidence 或 Report 输入 |
+| CAConnection Acceptance Window | CA 接入接收窗口 | registration、running、submitting 可登记和握手；running、submitting 接收正式 Session；judging 起关闭两类接收 |
 | Work Status | 作品状态 | draft、submitted、locked、hidden；获奖由 Award 推导，入围暂作为评审过程状态后续细化 |
 | Report Status | 报告状态 | draft、generated、reviewed、published |
-| Review Flag / Review Readiness | 评审前风险提示 | 标记空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常，供 Organizer / Judge 处理和参考 |
+| ReviewFlag | 评审前风险事实 | 标记空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常，供 Organizer 人工处理和 Judge 参考；不自动改变资格或结果 |
 | Visibility | 可见性 | 公开、隐藏、内部、未发布等展示边界 |
 | Schedule | 赛程 | Race 的时间安排 |
 | Rules | 规则 | Race 的参赛、提交、评审规则 |
@@ -228,7 +228,7 @@ MVP 关键约束：
 | Registration Status | Registration | 报名状态 |
 | RaceProject Aggregate Ingestion Status | Race Project | 多个 CAConnection 的聚合 CA 接入健康度；failed / not_configured 表达证据缺口或接入异常，不改变 Registration 资格状态 |
 | CAConnection Ingestion Status | CA Connection | 单个 CA 接入状态；failed 表达连接异常和证据缺口 |
-| Review Flag | Registration / Work / Race Project | 评审前风险提示，表达空骑行、无 CA 数据、空作品、缺必填材料、疑似违规或接入异常 |
+| ReviewFlag | Registration / Work / Race Project | 评审前风险事实，表达空骑行、无 CA 数据、空作品、缺必填材料、疑似违规或接入异常；CA 异常可关联脱敏后的 Ingestion Audit 摘要 |
 | Work Status | Work | 作品资产自身流程状态；是否获奖由 Award 推导，入围暂作为评审过程状态后续细化 |
 | Report Status | Report | 报告生成、审核、发布状态 |
 | Visibility | Race / Work / Evidence / Report / Rider Profile | 控制公开、隐藏、内部可见 |
@@ -272,7 +272,7 @@ MVP 关键约束：
 | Project Creation Flow | Registration, Race Project | Registration approved 后由 ARY 幂等生成一个 RaceProject；RaceProject 下可配置多个 CAConnection，可关联 GitHub Repo 作为代码材料入口 |
 | Riding Metrics Calculation | Session Data, CAConnection Metrics, RaceProject Metrics | 从实时 Session 和摘要计算单个 CAConnection 与 RaceProject 聚合层的成本、进度、风险、能力 |
 | Work Creation Flow | Registration, Work | 创建或提交作品资产，之后进入展示、评审、榜单 |
-| Review Readiness Check | Registration, Race Project, Work, Evidence | 评审前识别空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常，生成风险提示 |
+| ReviewFlag Evaluation | Registration, Race Project, Work, Evidence | 评审前识别空骑行、无 CA 数据、空作品、缺必填材料、疑似违规和接入异常，生成或更新 ReviewFlag |
 | Judge Assignment Flow | User(role=organizer), User(role=judge), Work | 主办方把作品分配给拥有 judge role 的 User |
 | Judging Flow | User(role=judge), Work, Judge Assignment, Judging Record | 拥有 judge role 的 User 查看作品、参考骑行摘要、评分、评语 |
 | Award Generation Flow | Registration, Judging Record, Award | 评审后形成 Award；Award 授予获奖 Registration，可追溯到相关 Judging Record，包含奖项名称和名次 |
@@ -398,7 +398,7 @@ Race -> Report -> Results / Review
 * CAConnectionRegistered
 * CAConnectionConnected
 * CAConnectionFailed
-* RaceCAConnectionSetLocked
+* CAConnectionAcceptanceWindowClosed
 * RaceProjectIngestionAggregated
 * SessionStarted
 * SessionCompleted
@@ -636,7 +636,7 @@ classDiagram
     User "1" --> "0..*" Registration : submits as rider
     Registration --> RegistrationStatus : status
 
-    Registration "1" --> "0..1" RaceProject : binds CA project
+    Registration "1" --> "0..1" RaceProject : creates race workspace
     RaceProject --> IngestionStatus : aggregate status
     RaceProject "1" --> "0..*" CAConnection : contains
     CAConnection --> CAType : ca type
@@ -938,9 +938,13 @@ classDiagram
 | 一个 RaceProject 可以有多个 CAConnection | 选手可以在同一场 Race 中使用多个 CA，并在参赛过程中通过多个 connector 将多个 CA 接入赛事 |
 | 一个 CAConnection 可以有多个 Sessions | 一场比赛中单个 CA 的协作会分多次 Session 发生 |
 | CAConnection 必须先登记和握手 | 只有完成登记、归属正确、握手成功且未禁用的 CAConnection 后续数据可以进入 Projection、Evidence 或 Report 输入 |
+| CA 接入窗口按 Race Status 分离 | registration、running、submitting 可登记和握手；只有 running、submitting 接收正式 Session；judging 起拒收新增连接和 Session 并记录审计 |
 | CA 接入状态不改变 Registration 资格状态 | RaceProject 聚合状态 failed / not_configured 只表达证据缺口或接入异常，进入评审前风险提示，不自动取消提交、评审或 Award 资格 |
+| CA 数据接收边界与参赛资格分离 | 未登记、未握手、归属错误、被禁用、签名错误或重放的消息不得进入有效事实链，但拒收只形成 Review Flag 和 Ingestion Audit，不改变 Registration、提交、评审或 Award 资格 |
 | 事后 Session Summary 不能伪造实时证据 | MVP 不接受赛后手动上传 Session Summary 伪造实时 CA 过程；如作为说明材料引用，必须标记来源、时间和可信度 |
 | 一个 Registration 最多一个主 Work | MVP 阶段先支持单作品提交；多作品后续再扩展 |
+| Work 内容准入与 CA 状态分离 | Work 提交要求非空标题以及 repoUrl / demoUrl 至少一项；缺失时保持 draft，CA failed / not_configured 不参与该校验 |
+| 疑似违规只触发人工复核 | ReviewFlag 可记录疑似违规，但不自动改变 Registration、JudgingRecord 或 Award；Organizer 处理结论应保留审计 |
 | 一个 Work 可以被多个 Judge 分配和评审 | 通过 JudgeAssignment 和 JudgingRecord 表达 |
 | JudgeAssignment 应记录 assignedByUserId | 分配人应拥有 organizer 或 admin role，用于审计和权限追溯 |
 | JudgingRecord 应来源于一个 JudgeAssignment | 评审记录的评委和作品从 JudgeAssignment 推导，不重复保存为独立事实 |

@@ -1,29 +1,22 @@
 # PRD-TEMP-1 报名 / RaceProject / CA 参赛语义整改临时任务书
 
-版本：v0.2
-状态：首轮整改完成 / 待复审
+版本：v0.4
+状态：核心对象与窗口口径冻结 / 待复审
 任务编号：PRD-TEMP-1
 上游入口：`ary-mvp.prd.md`、`ary-domain-analysis.v0.3.md`、`ary-ca-integration-spec.md`
 关联任务：`PRD-1`、`DEV-1`、`DEV-4`、`DEV-5`、`UX-1`
-当前目的：承接报名、RaceProject 自动生成、CAConnection 动态接入和评审前风险提示的产品规则调整，先形成一致性整改入口。
+当前目的：承接报名、RaceProject 自动生成、CAConnection 动态接入、评审前风险提示和接入审计线索的产品规则调整，形成一致性整改入口并防止旧 CA 资格门禁回归。
 
 ---
 
 # 1. 背景
 
-当前文档基线将实时 CA 接入定义为参赛资格条件，并把 CA 接入拆为注册阶段和开赛阶段：
-
-```text
-注册阶段登记 CAConnection
--> 开赛后只允许已登记 CAConnection 骑行
--> RaceProject 聚合 CA 接入失败时 Registration 视为放弃参赛
--> 不进入提交、评审和 Award 流程
-```
+首轮整改前，文档曾把 CA 接入健康度与参赛业务流程错误耦合。二轮复审发现，临时任务书仍逐字保留废弃规则，导致自动一致性检查继续检出旧口径。现行任务书不再复述废弃规则原句，只保留迁移原因和目标行为。
 
 新的产品意见提出三项调整：
 
 1. ARY 为已批准的 Registration 自动生成 RaceProject。
-2. 不要求在注册阶段确定全部 CA；参赛过程中可以随时增加 CA 接入。
+2. 不要求在报名时确定全部 CA；参赛过程中可以随时增加 CA 接入。
 3. CA 接入失败不影响参赛资格；空骑行、空作品、违规作品等应在评审前被识别，并提醒 Judge。
 
 这会改变当前 PRD、领域模型、IA、权限、QA、发布运维和 CA 接入契约中的多处硬约束。因此需要先建立临时任务书，作为后续文档一致性整改的共同入口。
@@ -44,12 +37,12 @@ Registration approved
 -> Organizer / Judge 在评审前和评审时看到风险提示
 ```
 
-整改完成后，文档之间不得再同时存在以下冲突口径：
+整改完成后，文档之间必须保持以下一致行为：
 
-* CA 接入失败自动导致 Registration withdrawn。
-* RaceProject 聚合接入失败不进入提交、评审和 Award 流程。
-* Race running 后普通 Rider 不能新增 CAConnection。
-* 已登记 CAConnection 聚合成功后才允许进入正式提交路径。
+* Registration 状态只由报名审核和显式退出动作改变。
+* RaceProject 聚合接入异常只生成风险提示和审计线索。
+* Rider 可在规则允许的参赛窗口内新增 CAConnection。
+* 提交、评审和 Award 不读取 CA 聚合状态作为拒绝条件。
 
 ---
 
@@ -66,7 +59,7 @@ Registration approved
 ## 3.2 CAConnection 与骑行数据
 
 * 一个 RaceProject 可有 0 个或多个 CAConnection。
-* Rider 可在参赛过程中为自己的 RaceProject 新增 CAConnection。
+* Rider 可在 registration、running、submitting 为自己的 RaceProject 新增和握手 CAConnection。
 * CAConnection 必须先完成登记和握手，之后产生的数据才可进入有效证据链。
 * 未登记、归属错误、未握手或被禁用的 CAConnection push 不得直接进入 Projection、Evidence 或 Report 输入。
 * GitHub Repo / 代码材料仍只能作为作品代码入口或 Evidence 外部材料引用，不能伪装成实时 CA Session。
@@ -75,9 +68,10 @@ Registration approved
 ## 3.3 参赛资格与评审风险
 
 * CA 接入状态不改变 Registration 资格状态。
-* RaceProject aggregate ingestion failed / not_configured 只表达接入健康度或证据缺口，不表达放弃参赛。
+* RaceProject aggregate ingestion failed / not_configured 只表达接入健康度或证据缺口，不表达 Registration 状态变化。
 * 空骑行、无 CA 数据、空作品、缺必填材料、疑似违规、接入异常等进入评审前风险提示。
 * 风险提示不自动替代 Judge 评分，也不自动决定 Award。
+* CA 消息拒收只决定不可信数据不得进入事实链；拒收应形成脱敏审计线索，但不得改变 Registration、Work Submission、JudgingRecord 或 Award 资格。
 * Organizer 可在评审前查看和处理风险；Judge 可在评审时看到与自己分配作品相关的风险摘要。
 
 ---
@@ -127,7 +121,7 @@ Registration approved
 
 * Registration approved 后自动生成 RaceProject。
 * CA 是过程证据和评审参考，不是参赛资格硬门禁。
-* 参赛过程中可以新增 CAConnection。
+* registration、running、submitting 可以新增和握手 CAConnection；正式 Session 只在 running、submitting 接收。
 * 评审前风险提示承接空骑行、空作品、违规作品和接入异常。
 
 ## Step 2：领域与状态收敛
@@ -136,8 +130,8 @@ Registration approved
 
 * Registration Status 不再由 CA 接入状态驱动 withdrawn。
 * RaceProject Aggregate Ingestion Status 改为接入健康度。
-* CAConnection Registration Lock 已收敛为 CAConnection Acceptance Window。
-* 评审前风险提示当前采用 Review Readiness / Review Flag 作为文档命名，后续实现命名可在架构阶段再定。
+* 旧锁定事件已收敛为 CAConnectionAcceptanceWindowClosed；窗口只控制连接登记、握手和 Session 接收，不表达资格变化。
+* 领域统一命名为 ReviewFlag，API 展示字段统一为 `reviewWarnings`。
 
 ## Step 3：CA 契约重写
 
@@ -153,8 +147,8 @@ Registration approved
 依次同步：
 
 * IA：Rider View 从资格门禁改为证据完整度；Judge View 增加风险提示。
-* UX-1：更新高保真任务书中的设计护栏，移除“实时 CA 接入是参赛资格条件”的旧口径。
-* 高保真原型：复审 Rider / Organizer / Judge 相关页面；如页面表达了 CA 未接入不可提交、CA 失败即放弃参赛、开赛后不可新增 CA 等旧口径，需要同步整改。
+* UX-1：更新高保真任务书中的设计护栏，确保 CA 状态只表达证据完整度和风险。
+* 高保真原型：复审 Rider / Organizer / Judge 相关页面，确保 CA 异常不会表现为提交禁用、Registration 状态变化或 CAConnection 新增入口提前关闭。
 * 权限：Rider 可在参赛窗口内新增 CAConnection。
 * QA：翻转原有阻断型测试，增加风险提示测试。
 * OPS：CA 失败从资格事故改为数据完整性 / 评审风险事件。
@@ -169,45 +163,40 @@ Registration approved
 
 本任务完成时应满足：
 
-* 文档中不再把 CA 接入失败定义为自动放弃参赛。
+* 文档中不再把 CA 接入失败定义为 Registration 状态变化。
 * 文档中不再把 CA 聚合成功定义为 Work Submission 的前置硬门禁。
 * 文档中明确 Registration approved 后由 ARY 自动生成 RaceProject。
-* 文档中明确 Rider 可在参赛过程中新增 CAConnection。
+* 文档中明确 Rider 可在 registration、running、submitting 新增和握手 CAConnection。
 * 文档中明确未登记、未握手、归属错误或被禁用的 CA 数据不得污染 Projection、Evidence、Report。
 * 文档中明确评审前风险提示的用途、边界和可见角色。
 * UX-1 设计护栏不再表达 CA 接入资格门禁。
 * 高保真原型中 Rider / Organizer / Judge 关键页面不再表达旧资格门禁；首轮已整改页面后续新增或改版时必须继续防回归。
 * PRD、领域、IA、权限、QA、OPS、CA Spec、项目计划之间无高优先级冲突。
 
-建议验收搜索词：
+建议使用行为断言验收，而不是仅依赖关键词：
 
-```text
-参赛资格条件
-放弃参赛
-注册阶段
-开赛后只允许已登记
-冻结语义
-不进入提交、评审和 Award
-已登记 CAConnection 聚合接入成功后
-事后上传 Session Summary 补救
-```
+* failed / not_configured 时 Work Submission 返回成功并携带 Review Warning。
+* CA 异常时 JudgeAssignment、JudgingRecord 和 Award 路径保持可用。
+* 不可信 CA 消息被拒收，且 Ingestion Audit 可追溯、评审摘要已脱敏。
+* Public 响应不包含内部 Review Warning 或 Ingestion Audit。
 
 ---
 
-# 8. 风险与待定
+# 8. 已冻结决策与剩余风险
 
-| 风险 / 待定 | 说明 |
+| 项目 | 冻结结论 / 风险 |
 | --- | --- |
-| 评审前风险提示命名待定 | 可能命名为 ReviewReadinessCheck、ReviewFlag、ComplianceFlag 或 EligibilitySignal，需后续统一 |
-| 提交准入边界待定 | 空作品、缺必填材料是否允许提交，或允许提交但标记风险，需要 PRD 明确 |
-| CAConnection 新增窗口待复审 | 已初步收敛为 running / submitting 且尚未进入 judging 前可新增；需复审确认是否进入正式 Race Rules |
-| 违规作品处理待定 | 系统只提示、Organizer 可标记、还是进入评审前人工处理，需要后续细化 |
+| ReviewFlag 命名 | 领域使用 ReviewFlag；API 使用 `reviewWarnings`；禁止使用资格判定式命名。 |
+| Work 内容准入 | 标题以及 repoUrl / demoUrl 至少一项必填；缺失时保持 draft。CA 状态不参与内容准入。 |
+| CAConnection 登记与握手窗口 | registration、running、submitting 开放；judging 起关闭。 |
+| 正式 Session 接收窗口 | 仅 running、submitting 开放；其他状态拒收并写接入审计。 |
+| 疑似违规处理 | 生成 ReviewFlag，由 Organizer 人工处理、Judge 参考；不自动改变 Registration、评审或 Award。 |
 | UX / 高保真原型防回归 | 已完成首轮复审和整改；后续 Rider / Organizer / Judge 页面新增或改版时，需继续避免表达旧资格门禁 |
 
 ---
 
 # 9. 当前建议
 
-本任务已完成首轮文档和原型整改，建议作为 `PRD-1` 的子任务复审，并在确认后并入正式文档基线。
+本任务已完成 v0.4 一致性整改：RaceProject 明确为参赛工作区，CAConnection 承载单个外部 CA 实例；登记 / 握手与正式 Session 接收窗口已分离；ReviewFlag、作品内容准入和疑似违规人工处理已冻结；窗口规则、接入审计和 CA 非门禁行为测试均已落地。建议作为 `PRD-1` 的子任务复审，并在确认后并入正式文档基线。
 
-在本任务复审完成前，`DEV-5` 不应重新固化“注册阶段 / 开赛冻结 / CA 失败放弃参赛”的旧模型。
+在本任务复审完成前，`DEV-5` 不应重新把 CAConnection 接入健康度与 Registration、提交、评审或 Award 状态机耦合。

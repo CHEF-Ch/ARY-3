@@ -325,7 +325,7 @@ $hifi-ui-page-workflow
 高保真重点：
 
 * 评审页要兼顾作品理解和评分效率。
-* Evidence / Riding Summary / Review Flag 是评审参考，不应压过作品本身。
+* Evidence / Riding Summary / ReviewFlag 是评审参考，不应压过作品本身；API 中以 `reviewWarnings` 展示。
 * 第一版可先表达固定评分项，不展开复杂评分配置。
 
 ## 6.5 Screen 展示路径

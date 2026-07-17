@@ -84,7 +84,8 @@ MVP 使用 GitHub Account 登录；用户补充个人资料后成为 ARY User。
 规则：
 
 * Registration approved 后由系统幂等创建 RaceProject；Rider 不手动创建自己的 RaceProject。
-* 同一 RaceProject 可配置多个 CAConnection；CAConnection 可在参赛过程中新增。
+* 同一 RaceProject 可配置多个 CAConnection；Rider、managed race Organizer 或 Admin 仅可在 registration、running、submitting 登记和握手 CAConnection。
+* 正式 CA Session 只在 running、submitting 接收；judging、completed、archived 拒收新增连接和 Session，但不改变 Registration 资格。
 * 只有已登记、已握手、归属正确且未禁用的 CAConnection 后续数据可以进入 Projection、Evidence 或 Report 输入。
 * 单个 CAConnection failed 或 RaceProject 聚合接入 failed 不触发 Registration 自动退赛，只形成连接异常、证据缺口和评审前风险提示。
 * GitHub Repo 只能作为作品代码入口或 Evidence 外部材料引用，不能替代任何实时 CAConnection。
@@ -108,6 +109,8 @@ MVP 使用 GitHub Account 登录；用户补充个人资料后成为 ARY User。
 
 * Work 是作品资产，不是提交记录本身。
 * MVP 阶段一个 Registration 最多一个主 Work。
+* Work submit 需要非空标题以及 repoUrl / demoUrl 至少一项；该内容准入不读取 RaceProject 或 CAConnection 状态。
+* ReviewFlag 只允许 managed race Organizer 处理，Judge 只读分配作品的风险摘要；疑似违规不得由系统自动转成资格或 Award 结论。
 
 ## 3.5 Evidence
 

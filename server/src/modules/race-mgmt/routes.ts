@@ -30,6 +30,9 @@ const INGESTION_STATUSES = [
   "failed",
 ] as const;
 
+const CA_CONNECTION_REGISTRATION_STATUSES: readonly string[] = ["registration", "running", "submitting"];
+const CA_SESSION_ACCEPTANCE_STATUSES: readonly string[] = ["running", "submitting"];
+
 const MAX_SESSION_PAYLOAD_BYTES = 64 * 1024;
 
 const CONNECTION_HEALTH = [
@@ -213,6 +216,8 @@ export function registerRaceMgmtRoutes(app: Express): void {
         "Only registered, DCR-handshaken, correctly owned, enabled CA connections can produce valid sessions.",
         "DCR Desktop App push messages must be authenticated, integrity checked, timestamp checked, sequence checked, and replay checked before becoming valid sessions.",
         "Handshake uses a server-generated challenge and HMAC-SHA256 with the per-connection secret; unsigned, downgraded, or mismatched handshakes are rejected.",
+        "CA connections can be registered and handshaken during registration, running, and submitting.",
+        "Valid CA sessions are accepted only while the race is running or submitting.",
         "CA ingestion failed or not_configured does not withdraw a registration.",
       ],
       outOfScope: [
@@ -604,6 +609,11 @@ export function registerRaceMgmtRoutes(app: Express): void {
       res.status(403).json({ error: "Not allowed to register CAConnection" });
       return;
     }
+    if (!race) { res.status(404).json({ error: "Race not found" }); return; }
+    if (!CA_CONNECTION_REGISTRATION_STATUSES.includes(race.status)) {
+      res.status(409).json({ error: "Race is not accepting new CAConnections", raceStatus: race.status });
+      return;
+    }
 
     const { caType, connectorVersion, externalProjectRef } = req.body;
     if (!caType || typeof caType !== "string") {
@@ -764,6 +774,10 @@ export function registerRaceMgmtRoutes(app: Express): void {
       res.status(403).json({ error: "Not allowed to handshake CAConnection" });
       return;
     }
+    if (!scoped.race || !CA_CONNECTION_REGISTRATION_STATUSES.includes(scoped.race.status)) {
+      res.status(409).json({ error: "Race is not accepting CAConnection handshakes", raceStatus: scoped.race?.status || null });
+      return;
+    }
     if (connection.disabled_at) {
       res.status(409).json({ error: "Disabled CAConnection cannot handshake" });
       return;
@@ -782,9 +796,21 @@ export function registerRaceMgmtRoutes(app: Express): void {
         updated_at: now,
       });
       deriveRaceProjectIngestionStatus(connection.race_project_id);
+      const auditReasons = signatureMatches ? failures : [...failures, "signature_mismatch"];
+      recordIngestionAudit({
+        caConnectionId: connection.id,
+        raceProjectId: connection.race_project_id,
+        connectorId: connection.connector_id,
+        accepted: false,
+        reason: "handshake_verification_failed",
+        detail: auditReasons.join(", "),
+        nonce: null,
+        sequence: null,
+        payloadHash: null,
+      });
       res.status(403).json({
         error: "Handshake verification failed",
-        failures: signatureMatches ? failures : [...failures, "signature_mismatch"],
+        failures: auditReasons,
         connection: toCAConnectionResponse(updated!),
       });
       return;
@@ -818,6 +844,17 @@ export function registerRaceMgmtRoutes(app: Express): void {
       updated_at: now,
     });
     deriveRaceProjectIngestionStatus(connection.race_project_id);
+    recordIngestionAudit({
+      caConnectionId: connection.id,
+      raceProjectId: connection.race_project_id,
+      connectorId: connection.connector_id,
+      accepted: false,
+      reason: "connection_disabled",
+      detail: "CAConnection was disabled by an authorized user.",
+      nonce: null,
+      sequence: null,
+      payloadHash: null,
+    });
     res.json(toCAConnectionResponse(updated!));
   });
 
@@ -836,6 +873,23 @@ export function registerRaceMgmtRoutes(app: Express): void {
         payloadHash: optionalString(req.body?.payloadHash),
       });
       res.status(404).json({ error: "CAConnection not found" });
+      return;
+    }
+
+    const scoped = getCAConnectionScope(connection);
+    if (!scoped?.race || !CA_SESSION_ACCEPTANCE_STATUSES.includes(scoped.race.status)) {
+      recordIngestionAudit({
+        caConnectionId: connection.id,
+        raceProjectId: connection.race_project_id,
+        connectorId: connection.connector_id,
+        accepted: false,
+        reason: "race_not_accepting_sessions",
+        detail: `Race status ${scoped?.race?.status || "missing"} is outside the CA Session acceptance window.`,
+        nonce: optionalString(req.body?.nonce),
+        sequence: typeof req.body?.sequence === "number" ? req.body.sequence : null,
+        payloadHash: optionalString(req.body?.payloadHash),
+      });
+      res.status(409).json({ error: "Race is not accepting CA sessions", reason: "race_not_accepting_sessions" });
       return;
     }
 
@@ -936,11 +990,12 @@ export function registerRaceMgmtRoutes(app: Express): void {
     res.json({
       module: "B",
       stage: "B5",
-      purpose: "Human review for signed Session push, tamper detection, replay prevention, and ingestion audit.",
+      purpose: "Human review for CA handshake, connection lifecycle, signed Session push, tamper detection, replay prevention, and ingestion audit.",
       connection: toCAConnectionResponse(connection),
       summary: {
         acceptedSessions: sessions.length,
-        rejectedPushes: audits.filter((audit) => !audit.accepted).length,
+        rejectedEvents: audits.filter((audit) => !audit.accepted).length,
+        rejectedPushes: audits.filter((audit) => !audit.accepted && !["handshake_verification_failed", "connection_disabled"].includes(audit.reason)).length,
         lastSequence: connection.last_sequence,
         lastNonce: connection.last_nonce,
       },

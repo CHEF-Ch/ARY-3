@@ -15,6 +15,13 @@ export interface ReviewWarning {
   registrationId: string;
   raceProjectId?: string;
   aggregateIngestionStatus?: string;
+  auditSummary?: {
+    eventCount: number;
+    latestEventId: string;
+    latestReason: string;
+    latestReceivedAt: string;
+    connectionIds: string[];
+  };
 }
 
 export interface WorkResponse {

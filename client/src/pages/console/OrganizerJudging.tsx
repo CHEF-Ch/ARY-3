@@ -312,7 +312,14 @@ export default function OrganizerJudging() {
                 <span>Race ID：{work.raceId}</span>
               </button>
               {work.reviewWarnings.length ? (
-                <p style={warningTextStyle}>风险提示：{work.reviewWarnings.length} 条</p>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <p style={warningTextStyle}>风险提示：{work.reviewWarnings.length} 条</p>
+                  {work.reviewWarnings.map((warning) => warning.auditSummary ? (
+                    <p key={`${warning.registrationId}-${warning.code}`} style={{ ...muted, margin: 0, fontSize: 12 }}>
+                      审计线索 {warning.auditSummary.latestEventId}：{warning.auditSummary.eventCount} 条事件，最近原因为 {warning.auditSummary.latestReason}，发生于 {new Date(warning.auditSummary.latestReceivedAt).toLocaleString()}。
+                    </p>
+                  ) : null)}
+                </div>
               ) : (
                 <p style={muted}>暂无评审前风险提示。</p>
               )}

@@ -42,6 +42,23 @@ interface RaceProject {
   aggregate_ingestion_status: string;
 }
 
+interface IngestionAudit {
+  id: string;
+  ca_connection_id: string;
+  race_project_id: string | null;
+  accepted: boolean;
+  reason: string;
+  received_at: string;
+}
+
+interface ReviewAuditSummary {
+  eventCount: number;
+  latestEventId: string;
+  latestReason: string;
+  latestReceivedAt: string;
+  connectionIds: string[];
+}
+
 interface UserRow {
   id: string;
   githubAccount: string;
@@ -131,6 +148,7 @@ interface ReviewWarning {
   registrationId: string;
   raceProjectId?: string;
   aggregateIngestionStatus?: string;
+  auditSummary?: ReviewAuditSummary;
 }
 
 export function registerPortfolioRoutes(app: Express): void {
@@ -778,6 +796,22 @@ function toReviewWarningResponse(warning: ReviewWarning) {
   return warning;
 }
 
+function getReviewAuditSummary(raceProjectId: string): ReviewAuditSummary | undefined {
+  const audits = findAll<IngestionAudit>("ingestion_audits")
+    .filter((audit) => audit.race_project_id === raceProjectId && !audit.accepted)
+    .sort((a, b) => b.received_at.localeCompare(a.received_at));
+  const latest = audits[0];
+  if (!latest) return undefined;
+
+  return {
+    eventCount: audits.length,
+    latestEventId: latest.id,
+    latestReason: latest.reason,
+    latestReceivedAt: latest.received_at,
+    connectionIds: [...new Set(audits.map((audit) => audit.ca_connection_id))],
+  };
+}
+
 export function getReviewWarningsForRegistration(registrationId: string): ReviewWarning[] {
   const registration = findById<Registration>("registrations", registrationId);
   if (!registration) {
@@ -818,6 +852,7 @@ export function getReviewWarningsForRegistration(registrationId: string): Review
       registrationId,
       raceProjectId: raceProject.id,
       aggregateIngestionStatus: raceProject.aggregate_ingestion_status,
+      auditSummary: getReviewAuditSummary(raceProject.id),
     })];
   }
 
