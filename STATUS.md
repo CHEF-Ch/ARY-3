@@ -28,3 +28,19 @@
 | `DEV-5` CA 接入 / Projection / Live Hall | 细化中 | CA 接入防伪/防篡改方案已落盘（Section 8）。 | `docs/ary-ca-integration-spec.md` |
 | `REL-1` 赛事彩排 / 灰度发布 / 正式发布 | 待开始 | 等待联调完成。 | `docs/ary-release-ops-plan.md` |
 | `OPS-1` 赛事值守 / 回滚 / 赛后归档 | 待开始 | 等待发布方案。 | `docs/ary-release-ops-plan.md` |
+| `OPS-2` 赛事归档包导出与组织者交付 | 待开始 | 等待 `OPS-1` 赛后归档入口和 Results / Review / Report / Evidence 发布状态明确。 | `docs/ary.plan.md` |
+
+## 风险 / 阻塞
+
+* `UX-1` 尚未评审验收，当前不能直接进入 `M2` 或启动架构设计。
+* `D` projection 分支目录结构异常需重建，完整 B/C/D/E 联调仍受阻。
+* 生产部署配置和统一 P0 回归仍待补齐，`REL-1` 尚不能启动。
+* CA 接入、Projection、Live Hall 和评审前风险提示仍需继续细化并联调。
+* `OPS-2` 归档包的数据范围、交付权限和脱敏规则需在发布链路明确后复核。
+
+## 有效决策
+
+* 当前正式项目任务定义入口是 `docs/ary.plan.md`。
+* 根目录 `PLAN.md` 维护近期窗口和下一步，根目录 `STATUS.md` 维护当前状态和证据。
+* `PRD-TEMP-1` 的新口径已同步到主要文档和高保真原型，但仍处于待复审状态。
+* 模块 B、C、E 的已完成判断以当前看板列出的测试和实现证据为准。
